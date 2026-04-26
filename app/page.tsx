@@ -346,19 +346,34 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       
       if (isPersonSearch) {
         const personId = personData.results[0].id;
-        movieUrl += `&with_cast=${personId}`;
-        tvUrl += `&with_cast=${personId}`;
         
-        const [movieRes, tvRes] = await Promise.all([
-          fetch(movieUrl),
-          isTv ? fetch(tvUrl) : Promise.resolve({ json: () => ({ results: [] }) }),
-        ]);
-        const movieData: TMDbResponse = await movieRes.json();
-        movieResults = movieData.results || [];
+        const creditsRes = await fetch(
+          `https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`
+        );
+        const creditsData = await creditsRes.json();
+        
+        if (creditsData.cast) {
+          const castMovies = creditsData.cast.slice(0, 20).map((c: TMDbMovie) => ({
+            ...c,
+            title: c.title || c.original_title,
+            release_date: c.release_date,
+          }));
+          movieResults = castMovies;
+        }
         
         if (isTv) {
-          const tvData: TMDbResponse = await tvRes.json();
-          tvResults = tvData.results || [];
+          const tvCreditsRes = await fetch(
+            `https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`
+          );
+          const tvCreditsData = await tvCreditsRes.json();
+          if (tvCreditsData.cast) {
+            const castTv = tvCreditsData.cast.slice(0, 20).map((c: TMDbMovie) => ({
+              ...c,
+              title: c.name || c.original_name,
+              release_date: c.first_air_date,
+            }));
+            tvResults = castTv;
+          }
         }
       } else {
         const searchRes = await fetch(
