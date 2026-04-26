@@ -342,24 +342,38 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       );
       const personData = await personRes.json();
       
-      if (personData.results && personData.results.length > 0) {
+      const isPersonSearch = personData.results && personData.results.length > 0;
+      
+      if (isPersonSearch) {
         const personId = personData.results[0].id;
         movieUrl += `&with_cast=${personId}`;
         tvUrl += `&with_cast=${personId}`;
-      }
-      
-      const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
-      );
-      const searchData: TMDbResponse = await searchRes.json();
-      movieResults = searchData.results || [];
-      
-      if (isTv) {
-        const searchTvRes = await fetch(
-          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+        
+        const [movieRes, tvRes] = await Promise.all([
+          fetch(movieUrl),
+          isTv ? fetch(tvUrl) : Promise.resolve({ json: () => ({ results: [] }) }),
+        ]);
+        const movieData: TMDbResponse = await movieRes.json();
+        movieResults = movieData.results || [];
+        
+        if (isTv) {
+          const tvData: TMDbResponse = await tvRes.json();
+          tvResults = tvData.results || [];
+        }
+      } else {
+        const searchRes = await fetch(
+          `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
         );
-        const searchTvData: TMDbResponse = await searchTvRes.json();
-        tvResults = searchTvData.results || [];
+        const searchData: TMDbResponse = await searchRes.json();
+        movieResults = searchData.results || [];
+        
+        if (isTv) {
+          const searchTvRes = await fetch(
+            `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+          );
+          const searchTvData: TMDbResponse = await searchTvRes.json();
+          tvResults = searchTvData.results || [];
+        }
       }
     } else if (isTv) {
       const [movieRes, tvRes] = await Promise.all([
