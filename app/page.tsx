@@ -169,7 +169,7 @@ function HomeContent() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterGenre, setFilterGenre] = useState<string>("");
-  const [filterYear, setFilterYear] = useState<string>("");
+  const [filterYear, setFilterYear] = useState<string>("2025");
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterTvShow, setFilterTvShow] = useState(false);
@@ -716,15 +716,16 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Release Year</label>
-                    <input
-                      type="number"
+                    <select
                       value={filterYear}
                       onChange={(e) => setFilterYear(e.target.value)}
-                      placeholder="e.g. 2024"
-                      min="1900"
-                      max="2030"
                       className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
-                    />
+                    >
+                      <option value="">All Years</option>
+                      {[2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008, 2007, 2006, 2005, 2004, 2003, 2002, 2001, 2000, 1999, 1998, 1997, 1996, 1995, 1994, 1993, 1992, 1991, 1990, 1989, 1988, 1987, 1986, 1985, 1984, 1983, 1982, 1981, 1980, 1979, 1978, 1977, 1976, 1975, 1974, 1973, 1972, 1971, 1970, 1969, 1968, 1967, 1966, 1965, 1964, 1963, 1962, 1961, 1960].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Stream</label>
