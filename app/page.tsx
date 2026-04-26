@@ -169,10 +169,14 @@ function HomeContent() {
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterTvShow, setFilterTvShow] = useState(false);
+  const [filterRating, setFilterRating] = useState<string>("");
+  const [filterStars, setFilterStars] = useState<string>("");
   const [streamProviders] = useState<{ provider_id: number; provider_name: string }[]>(STREAM_PROVIDERS);
   const [popularActors, setPopularActors] = useState<TMDbPopularPerson[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [favorites, setFavorites] = useState<Movie[]>([]);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -185,6 +189,10 @@ function HomeContent() {
     } else {
       const stored = localStorage.getItem("tmdb_api_key");
       if (stored) setApiKey(stored);
+    }
+    const storedFavorites = localStorage.getItem("favorites");
+    if (storedFavorites) {
+      setFavorites(JSON.parse(storedFavorites));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -199,13 +207,16 @@ function HomeContent() {
   const fetchMovieDetail = useCallback(async (id: number) => {
     setDetailLoading(true);
     setWatchProviders([]);
+    setSimilarMovies([]);
     try {
-      const [detailRes, providersRes] = await Promise.all([
+      const [detailRes, providersRes, similarRes] = await Promise.all([
         fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=en-US`),
         fetch(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${apiKey}`),
+        fetch(`https://api.themoviedb.org/3/movie/${id}/similar?api_key=${apiKey}&language=en-US&page=1`),
       ]);
       const detailData: TMDbDetail = await detailRes.json();
       const providersData: TMDbWatchProviders = await providersRes.json();
+      const similarData: TMDbResponse = await similarRes.json();
 
       setMovieDetail(detailData);
       setSelectedMovie({
@@ -221,6 +232,10 @@ function HomeContent() {
       const usProviders = providersData.results?.US;
       if (usProviders?.flatrate) {
         setWatchProviders(usProviders.flatrate);
+      }
+
+      if (similarData.results) {
+        setSimilarMovies(similarData.results.slice(0, 6).map(mapMovie));
       }
     } catch (e) {
       console.error("Failed to fetch movie detail", e);
@@ -268,7 +283,13 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     if (filterStream) {
       url += `&with_watch_providers=${filterStream}&watch_region=US`;
     }
-    if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream) {
+    if (filterRating) {
+      url += `&certification_country=US&certification=${filterRating}`;
+    }
+    if (filterStars) {
+      url += `&vote_average.gte=${filterStars}`;
+    }
+    if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream && !filterRating && !filterStars) {
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/${endpoint}?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
@@ -360,6 +381,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setSelectedMovie(null);
     setMovieDetail(null);
     setWatchProviders([]);
+    setSimilarMovies([]);
     setMovies([]);
     setQuery("");
     setFilterGenre("");
@@ -367,9 +389,23 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setFilterActor("");
     setFilterStream("");
     setFilterTvShow(false);
+    setFilterRating("");
+    setFilterStars("");
     setCurrentPage(1);
     setTotalResults(0);
     router.push("/");
+  }
+
+  function toggleFavorite(movie: Movie) {
+    const isFav = favorites.some(f => f.id === movie.id);
+    let newFavorites: Movie[];
+    if (isFav) {
+      newFavorites = favorites.filter(f => f.id !== movie.id);
+    } else {
+      newFavorites = [...favorites, movie].slice(-5);
+    }
+    setFavorites(newFavorites);
+    localStorage.setItem("favorites", JSON.stringify(newFavorites));
   }
 
   function getRottenTomatoesUrl(): string {
@@ -431,6 +467,27 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                       <span key={provider.provider_id} className="bg-gray-700 px-3 py-1 rounded-full text-sm">
                         {provider.provider_name}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {similarMovies.length > 0 && (
+                <div className="mt-8">
+                  <h3 className="font-semibold text-yellow-400 mb-4">Similar Movies</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    {similarMovies.map((movie) => (
+                      <div
+                        key={movie.id}
+                        onClick={() => router.push(`?movie=${movie.id}`)}
+                        className="cursor-pointer hover:opacity-80"
+                      >
+                        {movie.poster ? (
+                          <Image src={movie.poster} alt={movie.title} className="w-full rounded" width={200} height={300} unoptimized />
+                        ) : (
+                          <div className="w-full h-24 bg-gray-700 rounded flex items-center justify-center text-xs text-gray-500">No Poster</div>
+                        )}
+                        <p className="text-xs mt-1 truncate">{movie.title}</p>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -554,21 +611,38 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Stars</label>
                     <select
-                      value={filterActor}
-                      onChange={(e) => setFilterActor(e.target.value)}
+                      value={filterStars}
+                      onChange={(e) => setFilterStars(e.target.value)}
                       className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
                     >
-                      <option value="">All Actors</option>
-                      {popularActors.map((a) => (
-                        <option key={a.id} value={a.name}>{a.name}</option>
-                      ))}
+                      <option value="">Any Rating</option>
+                      <option value="9">9+ stars</option>
+                      <option value="8">8+ stars</option>
+                      <option value="7">7+ stars</option>
+                      <option value="6">6+ stars</option>
+                      <option value="5">5+ stars</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Movie Rating</label>
+                    <select
+                      value={filterRating}
+                      onChange={(e) => setFilterRating(e.target.value)}
+                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
+                    >
+                      <option value="">All Ratings</option>
+                      <option value="G">G</option>
+                      <option value="PG">PG</option>
+                      <option value="PG-13">PG-13</option>
+                      <option value="R">R</option>
+                      <option value="NC-17">NC-17</option>
                     </select>
                   </div>
                   <div className="flex items-end">
                     <button
                       type="button"
                       onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); setFilterStream("");
-    setFilterTvShow(false); }}
+    setFilterTvShow(false); setFilterRating(""); setFilterStars(""); }}
                       className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
                     >
                       Clear Filters
@@ -582,51 +656,87 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {error && (
-          <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">{error}</div>
-        )}
+        <div className="flex gap-8">
+          <div className="flex-1">
+            {error && (
+              <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">{error}</div>
+            )}
 
-        {movies.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-semibold mb-4 text-yellow-400">Search Results ({movies.length})</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {movies.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onClick={() => router.push(`?movie=${movie.id}`)} />
-              ))}
-            </div>
-            {movies.length < totalResults && movies.length >= 20 && (
-              <div className="mt-8 text-center">
-                <p className="text-gray-400 mb-4">Showing {movies.length} of {totalResults}</p>
-                <button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="px-8 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
-                >
-                  {loading ? "Loading..." : "More"}
-                </button>
+            {movies.length > 0 && (
+              <section className="mb-12">
+                <h2 className="text-2xl font-semibold mb-4 text-yellow-400">Search Results ({movies.length})</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {movies.map((movie) => (
+                    <MovieCard 
+                      key={movie.id} 
+                      movie={movie} 
+                      onClick={() => router.push(`?movie=${movie.id}`)} 
+                      onFavorite={() => toggleFavorite(movie)}
+                      showFavorite={true}
+                      isFavorite={favorites.some(f => f.id === movie.id)}
+                    />
+                  ))}
+                </div>
+                {movies.length < totalResults && movies.length >= 20 && (
+                  <div className="mt-8 text-center">
+                    <p className="text-gray-400 mb-4">Showing {movies.length} of {totalResults}</p>
+                    <button
+                      onClick={loadMore}
+                      disabled={loading}
+                      className="px-8 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
+                    >
+                      {loading ? "Loading..." : "More"}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {featured.length > 0 && movies.length === 0 && !loading && (
+              <section>
+                <h2 className="text-2xl font-semibold mb-4 text-yellow-400">Popular Movies</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {featured.slice(0, 10).map((movie) => (
+                    <MovieCard 
+                      key={movie.id} 
+                      movie={movie} 
+                      onClick={() => router.push(`?movie=${movie.id}`)} 
+                      onFavorite={() => toggleFavorite(movie)}
+                      showFavorite={true}
+                      isFavorite={favorites.some(f => f.id === movie.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {movies.length === 0 && featured.length === 0 && !loading && (
+              <div className="text-center py-12 text-gray-400">
+                <p className="text-xl">
+                  {apiKey ? "Search for your favorite movies!" : "Enter your API key above to get started"}
+                </p>
               </div>
             )}
-          </section>
-        )}
-
-        {featured.length > 0 && movies.length === 0 && !loading && (
-          <section>
-            <h2 className="text-2xl font-semibold mb-4 text-yellow-400">Popular Movies</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {featured.slice(0, 10).map((movie) => (
-                <MovieCard key={movie.id} movie={movie} onClick={() => router.push(`?movie=${movie.id}`)} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {movies.length === 0 && featured.length === 0 && !loading && (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-xl">
-              {apiKey ? "Search for your favorite movies!" : "Enter your API key above to get started"}
-            </p>
           </div>
-        )}
+
+          {favorites.length > 0 && (
+            <aside className="w-48 shrink-0">
+              <h3 className="text-lg font-semibold text-yellow-400 mb-3">Favorites</h3>
+              <ul className="space-y-2">
+                {favorites.map((movie) => (
+                  <li key={movie.id}>
+                    <button
+                      onClick={() => router.push(`?movie=${movie.id}`)}
+                      className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate block w-full"
+                    >
+                      {movie.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+        </div>
       </main>
 
       <footer className="bg-gray-800 py-6 px-4 mt-auto">
@@ -638,7 +748,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   );
 }
 
-function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
+function MovieCard({ movie, onClick, onFavorite, showFavorite, isFavorite }: { movie: Movie; onClick: () => void; onFavorite?: () => void; showFavorite?: boolean; isFavorite?: boolean }) {
   return (
     <div
       onClick={onClick}
@@ -652,7 +762,17 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
         </div>
       )}
       <div className="p-3">
-        <h3 className="font-semibold text-sm mb-1 truncate">{movie.title}</h3>
+        <div className="flex items-start justify-between gap-1">
+          <h3 className="font-semibold text-sm mb-1 truncate flex-1">{movie.title}</h3>
+          {showFavorite && onFavorite && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onFavorite(); }}
+              className="text-lg hover:scale-110 transition-transform"
+            >
+              {isFavorite ? "❤️" : "🤍"}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
           <span>{movie.year}</span>
           {movie.imdb_rating && <span className="text-yellow-400">&#9733; {movie.imdb_rating}</span>}
