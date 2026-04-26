@@ -596,6 +596,26 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     router.push("/");
   }
 
+  function searchActor(actorName: string) {
+    setFilterGenre("");
+    setFilterYear([]);
+    setFilterActor("");
+    setFilterStream("");
+    setFilterTvShow(false);
+    setFilterRating("");
+    setFilterStars("");
+    setSelectedMovie(null);
+    setMovieDetail(null);
+    setWatchProviders([]);
+    setSimilarMovies([]);
+    setMovieCredits([]);
+    setMovies([]);
+    setCurrentPage(1);
+    setTotalResults(0);
+    setQuery(actorName);
+    router.push("/");
+  }
+
   function toggleFavorite(movie: Movie) {
     const isFav = favorites.some(f => f.id === movie.id);
     let newFavorites: Movie[];
@@ -666,17 +686,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                     {movieCredits.map((credit, idx) => (
                       <li key={idx}>
                         <button
-                          onClick={() => {
-                            setFilterGenre("");
-                            setFilterYear([]);
-                            setFilterActor("");
-                            setFilterStream("");
-                            setFilterTvShow(false);
-                            setFilterRating("");
-                            setFilterStars("");
-                            setQuery(credit.name);
-                            router.push("/");
-                          }}
+                          onClick={() => searchActor(credit.name)}
                           className="text-white hover:text-yellow-400 underline"
                         >
                           {credit.name}
