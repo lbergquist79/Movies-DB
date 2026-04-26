@@ -267,7 +267,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   let url = `https://api.themoviedb.org/3/discover/${endpoint}?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear) {
-      url += `&first_air_date_year=${filterYear}`;
+      url += `&${isTv ? "first_air_date_year" : "primary_release_year"}=${filterYear}`;
     }
     if (filterGenre) {
       url += `&with_genres=${filterGenre}`;
