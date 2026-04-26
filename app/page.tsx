@@ -308,11 +308,9 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear.length > 0) {
-      const yearIndex = page - 1;
-      if (yearIndex < filterYear.length) {
-        const singleYear = filterYear[yearIndex];
-        movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=1&primary_release_year=${singleYear}`;
-        tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=1&first_air_date_year=${singleYear}`;
+      if (filterYear.length === 1) {
+        movieUrl += `&primary_release_year=${filterYear[0]}`;
+        tvUrl += `&first_air_date_year=${filterYear[0]}`;
       }
     }
     
@@ -406,6 +404,26 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
         const searchTvData: TMDbResponse = await searchTvRes.json();
         tvResults = searchTvData.results || [];
       }
+    } else if (filterYear.length > 1) {
+      const allMoviePromises = filterYear.map(year => 
+        fetch(`${movieUrl}&primary_release_year=${year}`)
+      );
+      const allTvPromises = filterYear.map(year =>
+        fetch(`${tvUrl}&first_air_date_year=${year}`)
+      );
+      
+      const [movieResponses, tvResponses] = await Promise.all([
+        Promise.all(allMoviePromises),
+        isTv ? Promise.all(allTvPromises) : Promise.resolve([])
+      ]);
+      
+      const allMovieData = await Promise.all(movieResponses.map((r: Response) => r.json()));
+      movieResults = allMovieData.flatMap((d: TMDbResponse) => d.results || []);
+      
+      if (isTv) {
+        const allTvData = await Promise.all(tvResponses.map((r: Response) => r.json()));
+        tvResults = allTvData.flatMap((d: TMDbResponse) => d.results || []);
+      }
     } else if (isTv) {
       const [movieRes, tvRes] = await Promise.all([
         fetch(movieUrl),
@@ -423,9 +441,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
 
     const allResults = isTv ? [...movieResults, ...tvResults] : movieResults;
     
-    if (isTv && page === 1) {
-      return { results: allResults, total: movieResults.length + tvResults.length };
-    }
     return { results: allResults, total: allResults.length };
   }
 
