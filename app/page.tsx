@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface Movie {
   id: string;
@@ -144,11 +145,15 @@ function MovieCard({ movie }: { movie: Movie }) {
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform">
       {movie.poster && movie.poster !== "N/A" ? (
-        <img
-          src={movie.poster}
-          alt={movie.title}
-          className="w-full h-80 object-cover"
-        />
+        <div className="relative w-full h-80">
+          <Image
+            src={movie.poster}
+            alt={movie.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+          />
+        </div>
       ) : (
         <div className="w-full h-80 bg-gray-700 flex items-center justify-center">
           <span className="text-gray-500">No Poster</span>
