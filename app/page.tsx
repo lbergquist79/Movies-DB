@@ -75,18 +75,22 @@ function mapMovie(movie: TMDbMovie): Movie {
   };
 }
 
+const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [featured, setFeatured] = useState<Movie[]>([]);
-  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string>(API_KEY);
 
   useEffect(() => {
-    const key = localStorage.getItem("tmdb_api_key");
-    if (key) {
-      setApiKey(key);
+    if (API_KEY) {
+      fetchFeaturedMovies();
+    } else {
+      const stored = localStorage.getItem("tmdb_api_key");
+      if (stored) setApiKey(stored);
     }
   }, []);
 
