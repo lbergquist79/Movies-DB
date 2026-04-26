@@ -308,10 +308,14 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear.length > 0) {
-      const years = filterYear.join(",");
-      movieUrl += `&primary_release_year=${years}`;
-      tvUrl += `&first_air_date_year=${years}`;
+      const yearIndex = page - 1;
+      if (yearIndex < filterYear.length) {
+        const singleYear = filterYear[yearIndex];
+        movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=1&primary_release_year=${singleYear}`;
+        tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=1&first_air_date_year=${singleYear}`;
+      }
     }
+    
     if (filterGenre) {
       movieUrl += `&with_genres=${filterGenre}`;
       tvUrl += `&with_genres=${filterGenre}`;
@@ -479,7 +483,19 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       } else {
         setMovies(prev => [...prev, ...mapped]);
       }
-      setTotalResults(total);
+      
+      let finalTotal = total;
+      if (filterYear.length > 1) {
+        const totalFromMultipleYears = filterYear.length * 20;
+        finalTotal = total > 0 ? Math.max(total, newPage * 20) : totalFromMultipleYears;
+        if (mapped.length >= 20 && newPage < filterYear.length) {
+          finalTotal = filterYear.length * 20;
+        } else if (mapped.length < 20) {
+          finalTotal = (newPage - 1) * 20 + mapped.length;
+        }
+      }
+      
+      setTotalResults(finalTotal);
       setCurrentPage(newPage);
       
       if (mapped.length === 0) {
@@ -802,7 +818,9 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
             {movies.length > 0 && (
               <section className="mb-12">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold text-yellow-400">Search Results ({movies.length})</h2>
+                  <h2 className="text-2xl font-semibold text-yellow-400">
+                    {filterYear.length > 0 ? `Results (${filterYear.join(", ")})` : "Search Results"} ({movies.length})
+                  </h2>
                   <select
                     value={sortBy}
                     onChange={(e) => {
@@ -835,7 +853,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                     />
                   ))}
                 </div>
-                {movies.length < totalResults && movies.length >= 20 && (
+                {movies.length >= 20 && movies.length < totalResults && (
                   <div className="mt-8 text-center">
                     <p className="text-gray-400 mb-4">Showing {movies.length} of {totalResults}</p>
                     <button
