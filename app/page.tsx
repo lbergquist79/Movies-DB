@@ -31,13 +31,37 @@ interface Movie {
   imdb_rating: string;
 }
 
+function isMainMovie(apiMovie: ApiMovie): boolean {
+  const rank = parseInt(apiMovie["#RANK"]) || 999999;
+  const title = apiMovie["#TITLE"].toLowerCase();
+  const excludeKeywords = [
+    "alternate",
+    "deleted",
+    "extended",
+    "scene",
+    "trailer",
+    "behind",
+    "making",
+    "interview",
+    "featurette",
+    "explanation",
+    "tamil",
+    "hindi",
+    "dubbed",
+  ];
+  const hasExcludeKeyword = excludeKeywords.some((keyword) =>
+    title.includes(keyword)
+  );
+  return rank < 15000 && !hasExcludeKeyword;
+}
+
 function mapApiMovie(apiMovie: ApiMovie): Movie {
   return {
     id: apiMovie["#IMDB_ID"],
     title: apiMovie["#TITLE"],
     year: apiMovie["#YEAR"],
     poster: apiMovie["#IMG_POSTER"] || "",
-    plot: apiMovie["#AKA"] || "",
+    plot: apiMovie["#AKA"]?.replace(apiMovie["#TITLE"], "").trim() || "",
     genre: apiMovie["#ACTORS"] || "",
     director: "",
     imdb_rating: apiMovie["#RANK"] || "",
@@ -61,8 +85,10 @@ export default function Home() {
         "https://imdb.iamidiotareyoutoo.com/search?tt=batman"
       );
       const data: ApiResponse = await res.json();
-      const mapped = (data.description || []).map(mapApiMovie);
-      setFeatured(mapped);
+      const filtered = (data.description || [])
+        .filter(isMainMovie)
+        .map(mapApiMovie);
+      setFeatured(filtered);
     } catch (e) {
       console.error("Failed to fetch featured movies", e);
     }
@@ -82,9 +108,11 @@ export default function Home() {
         )}`
       );
       const data: ApiResponse = await res.json();
-      const mapped = (data.description || []).map(mapApiMovie);
-      setMovies(mapped);
-      if (mapped.length === 0) {
+      const filtered = (data.description || [])
+        .filter(isMainMovie)
+        .map(mapApiMovie);
+      setMovies(filtered);
+      if (filtered.length === 0) {
         setError("No movies found. Try a different search.");
       }
     } catch (e) {
@@ -97,7 +125,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <header className="bg-gray-800 py-6 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold mb-4 text-center text-yellow-400">
             Movies-DB
           </h1>
@@ -120,7 +148,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {error && (
           <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">
             {error}
@@ -130,9 +158,9 @@ export default function Home() {
         {movies.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-semibold mb-4 text-yellow-400">
-              Search Results
+              Search Results ({movies.length})
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {movies.map((movie) => (
                 <MovieCard key={movie.id} movie={movie} />
               ))}
@@ -145,8 +173,8 @@ export default function Home() {
             <h2 className="text-2xl font-semibold mb-4 text-yellow-400">
               Featured: Batman Movies
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {featured.slice(0, 6).map((movie) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {featured.slice(0, 10).map((movie) => (
                 <MovieCard key={movie.id} movie={movie} />
               ))}
             </div>
@@ -161,7 +189,7 @@ export default function Home() {
       </main>
 
       <footer className="bg-gray-800 py-6 px-4 mt-auto">
-        <div className="max-w-4xl mx-auto text-center text-gray-400">
+        <div className="max-w-6xl mx-auto text-center text-gray-400">
           <p>Powered by Free Movie Database API</p>
         </div>
       </footer>
@@ -176,28 +204,30 @@ function MovieCard({ movie }: { movie: Movie }) {
         <img
           src={movie.poster}
           alt={movie.title}
-          className="w-full h-80 object-cover"
+          className="w-full h-56 object-cover"
         />
       ) : (
-        <div className="w-full h-80 bg-gray-700 flex items-center justify-center">
+        <div className="w-full h-56 bg-gray-700 flex items-center justify-center">
           <span className="text-gray-500">No Poster</span>
         </div>
       )}
-      <div className="p-4">
-        <h3 className="font-semibold text-lg mb-1 truncate">{movie.title}</h3>
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+      <div className="p-3">
+        <h3 className="font-semibold text-sm mb-1 truncate">{movie.title}</h3>
+        <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
           <span>{movie.year}</span>
           {movie.imdb_rating && (
-            <span className="text-yellow-400">★ {movie.imdb_rating}</span>
+            <span className="text-yellow-400">★ #{movie.imdb_rating}</span>
           )}
         </div>
         {movie.genre && (
-          <p className="text-sm text-gray-400 mb-2 line-clamp-2">
+          <p className="text-xs text-gray-400 line-clamp-2 mb-1">
             {movie.genre}
           </p>
         )}
         {movie.plot && (
-          <p className="text-sm text-gray-300 line-clamp-3">{movie.plot}</p>
+          <p className="text-xs text-gray-300 line-clamp-2 italic">
+            {movie.plot}
+          </p>
         )}
       </div>
     </div>
