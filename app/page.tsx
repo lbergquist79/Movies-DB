@@ -210,14 +210,20 @@ function HomeContent() {
     setWatchProviders([]);
     setSimilarMovies([]);
     try {
-      const [detailRes, providersRes, similarRes] = await Promise.all([
+      const [detailRes, providersRes, similarRes, creditsRes] = await Promise.all([
         fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=en-US`),
         fetch(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${apiKey}`),
         fetch(`https://api.themoviedb.org/3/movie/${id}/similar?api_key=${apiKey}&language=en-US&page=1`),
+        fetch(`https://api.themoviedb.org/3/movie/${id}/credits?api_key=${apiKey}&language=en-US`),
       ]);
       const detailData: TMDbDetail = await detailRes.json();
       const providersData: TMDbWatchProviders = await providersRes.json();
       const similarData: TMDbResponse = await similarRes.json();
+      const creditsData = await creditsRes.json();
+
+      const mainGenre = detailData.genres?.[0]?.id;
+      const mainActor = creditsData.cast?.[0]?.id;
+      const movieTitle = detailData.title?.toLowerCase() || "";
 
       setMovieDetail(detailData);
       setSelectedMovie({
@@ -235,9 +241,40 @@ function HomeContent() {
         setWatchProviders(usProviders.flatrate);
       }
 
+      const sequels: TMDbMovie[] = [];
+      const sameGenreActor: TMDbMovie[] = [];
+
       if (similarData.results) {
-        setSimilarMovies(similarData.results.slice(0, 6).map(mapMovie));
+        for (const m of similarData.results) {
+          const mTitle = (m.title || "").toLowerCase();
+          if (mTitle.includes(movieTitle) || movieTitle.includes(mTitle)) {
+            sequels.push(m);
+          } else if (mainGenre && m.genre_ids?.includes(mainGenre)) {
+            sameGenreActor.push(m);
+          }
+        }
       }
+
+      if (mainGenre && sameGenreActor.length < 6 && mainActor) {
+        try {
+          const genreActorRes = await fetch(
+            `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&with_genres=${mainGenre}&with_cast=${mainActor}&page=1&exclude_ids=${id}`
+          );
+          const genreActorData: TMDbResponse = await genreActorRes.json();
+          if (genreActorData.results) {
+            for (const m of genreActorData.results) {
+              if (!sameGenreActor.find(s => s.id === m.id) && sequels.length + sameGenreActor.length < 6) {
+                sameGenreActor.push(m);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch genre/actor movies", e);
+        }
+      }
+
+      const combined = [...sequels.slice(0, 3), ...sameGenreActor.slice(0, 3)].slice(0, 6);
+      setSimilarMovies(combined.map(mapMovie));
     } catch (e) {
       console.error("Failed to fetch movie detail", e);
     } finally {
@@ -300,6 +337,17 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     let tvResults: TMDbMovie[] = [];
 
     if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream && !filterRating && !filterStars) {
+      const personRes = await fetch(
+        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1`
+      );
+      const personData = await personRes.json();
+      
+      if (personData.results && personData.results.length > 0) {
+        const personId = personData.results[0].id;
+        movieUrl += `&with_cast=${personId}`;
+        tvUrl += `&with_cast=${personId}`;
+      }
+      
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
@@ -581,7 +629,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for movies..."
+                placeholder="Search for movies or actors..."
                 className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
               />
               <button
