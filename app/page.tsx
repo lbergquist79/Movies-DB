@@ -175,6 +175,7 @@ function HomeContent() {
   const [popularActors, setPopularActors] = useState<TMDbPopularPerson[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const [sortBy, setSortBy] = useState<string>("stars");
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const searchParams = useSearchParams();
@@ -341,7 +342,15 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
 
     try {
       const { results, total } = await searchWithFilters(newPage);
-      const mapped = results.map(mapMovie);
+      let mapped = results.map(mapMovie);
+      
+      if (sortBy === "stars") {
+        mapped = mapped.sort((a, b) => parseFloat(b.imdb_rating || "0") - parseFloat(a.imdb_rating || "0"));
+      } else if (sortBy === "title") {
+        mapped = mapped.sort((a, b) => a.title.localeCompare(b.title));
+      } else if (sortBy === "year") {
+        mapped = mapped.sort((a, b) => (b.year || "").localeCompare(a.year || ""));
+      }
       
       if (newPage === 1) {
         setMovies(mapped);
@@ -393,6 +402,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setFilterStars("");
     setCurrentPage(1);
     setTotalResults(0);
+    setSortBy("stars");
     router.push("/");
   }
 
@@ -664,7 +674,28 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
 
             {movies.length > 0 && (
               <section className="mb-12">
-                <h2 className="text-2xl font-semibold mb-4 text-yellow-400">Search Results ({movies.length})</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-semibold text-yellow-400">Search Results ({movies.length})</h2>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      const newSort = e.target.value;
+                      setSortBy(newSort);
+                      const sorted = [...movies].sort((a, b) => {
+                        if (newSort === "stars") return parseFloat(b.imdb_rating || "0") - parseFloat(a.imdb_rating || "0");
+                        if (newSort === "title") return a.title.localeCompare(b.title);
+                        if (newSort === "year") return (b.year || "").localeCompare(a.year || "");
+                        return 0;
+                      });
+                      setMovies(sorted);
+                    }}
+                    className="px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
+                  >
+                    <option value="stars">Stars</option>
+                    <option value="title">Title</option>
+                    <option value="year">Release Year</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {movies.map((movie) => (
                     <MovieCard 
@@ -724,12 +755,18 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
               <h3 className="text-lg font-semibold text-yellow-400 mb-3">Favorites</h3>
               <ul className="space-y-2">
                 {favorites.map((movie) => (
-                  <li key={movie.id}>
+                  <li key={movie.id} className="flex items-center justify-between gap-1">
                     <button
                       onClick={() => router.push(`?movie=${movie.id}`)}
-                      className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate block w-full"
+                      className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate flex-1"
                     >
                       {movie.title}
+                    </button>
+                    <button
+                      onClick={() => toggleFavorite(movie)}
+                      className="text-red-500 hover:text-red-400 text-xs"
+                    >
+                      ✕
                     </button>
                   </li>
                 ))}
