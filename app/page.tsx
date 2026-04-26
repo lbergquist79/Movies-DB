@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface TMDbMovie {
   id: number;
@@ -12,17 +14,31 @@ interface TMDbMovie {
   vote_average: number;
 }
 
+interface TMDbDetail {
+  id: number;
+  title: string;
+  release_date: string;
+  poster_path: string;
+  overview: string;
+  genres: { id: number; name: string }[];
+  vote_average: number;
+  runtime: number;
+  status: string;
+  tagline: string;
+  external_ids: {
+    imdb_id: string;
+    freebase_mid: string;
+    freebase_id: string;
+    tvdb_id: number;
+    tvrage_id: number;
+    facebook_id: string;
+    instagram_id: string;
+    twitter_id: string;
+  };
+}
+
 interface TMDbResponse {
   results: TMDbMovie[];
-}
-
-interface Genre {
-  id: number;
-  name: string;
-}
-
-interface GenreResponse {
-  genres: Genre[];
 }
 
 interface Movie {
@@ -58,6 +74,9 @@ const GENRE_MAP: Record<number, string> = {
 };
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const IMAGE_LARGE = "https://image.tmdb.org/t/p/original";
+
+const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
 function mapMovie(movie: TMDbMovie): Movie {
   return {
@@ -75,8 +94,6 @@ function mapMovie(movie: TMDbMovie): Movie {
   };
 }
 
-const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
-
 export default function Home() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -84,6 +101,13 @@ export default function Home() {
   const [error, setError] = useState("");
   const [featured, setFeatured] = useState<Movie[]>([]);
   const [apiKey, setApiKey] = useState<string>(API_KEY);
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [movieDetail, setMovieDetail] = useState<TMDbDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const movieId = searchParams.get("movie");
 
   useEffect(() => {
     if (API_KEY) {
@@ -95,10 +119,34 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (apiKey) {
-      fetchFeaturedMovies();
+    if (movieId && apiKey) {
+      fetchMovieDetail(parseInt(movieId));
     }
-  }, [apiKey]);
+  }, [movieId, apiKey]);
+
+  async function fetchMovieDetail(id: number) {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=external_ids`
+      );
+      const data: TMDbDetail = await res.json();
+      setMovieDetail(data);
+      setSelectedMovie({
+        id: data.id,
+        title: data.title,
+        year: data.release_date ? data.release_date.split("-")[0] : "",
+        poster: data.poster_path ? `${IMAGE_LARGE}${data.poster_path}` : "",
+        plot: data.overview || "",
+        genre: data.genres?.map((g) => g.name).join(", ") || "",
+        imdb_rating: data.vote_average ? data.vote_average.toFixed(1) : "",
+      });
+    } catch (e) {
+      console.error("Failed to fetch movie detail", e);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   async function fetchPopularMovies() {
     if (!apiKey) return [];
@@ -160,6 +208,84 @@ export default function Home() {
   function saveApiKey(key: string) {
     localStorage.setItem("tmdb_api_key", key);
     setApiKey(key);
+  }
+
+  function closeDetail() {
+    setSelectedMovie(null);
+    setMovieDetail(null);
+    router.push("/");
+  }
+
+  function getRottenTomatoesUrl(): string {
+    if (!selectedMovie) return "https://www.rottentomatoes.com";
+    return `https://www.rottentomatoes.com/search?search=${encodeURIComponent(
+      selectedMovie.title
+    )}`;
+  }
+
+  if (selectedMovie && movieDetail) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <header className="bg-gray-800 py-4 px-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <button
+              onClick={closeDetail}
+              className="text-yellow-400 hover:text-yellow-300"
+            >
+              ← Back to Search
+            </button>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="md:w-1/3">
+              {selectedMovie.poster ? (
+                <img
+                  src={selectedMovie.poster}
+                  alt={selectedMovie.title}
+                  className="w-full rounded-lg"
+                />
+              ) : (
+                <div className="w-full h-80 bg-gray-700 rounded-lg flex items-center justify-center">
+                  <span className="text-gray-500">No Poster</span>
+                </div>
+              )}
+              <a
+                href={getRottenTomatoesUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block mt-4 text-center py-2 bg-red-600 hover:bg-red-500 rounded-lg font-semibold"
+              >
+                View on Rotten Tomatoes
+              </a>
+            </div>
+            <div className="md:w-2/3">
+              <h1 className="text-3xl font-bold mb-2">{selectedMovie.title}</h1>
+              <div className="flex items-center gap-4 text-gray-400 mb-4">
+                <span>{selectedMovie.year}</span>
+                {movieDetail.runtime && <span>{movieDetail.runtime} min</span>}
+                {selectedMovie.imdb_rating && (
+                  <span className="text-yellow-400">
+                    ★ {selectedMovie.imdb_rating}/10
+                  </span>
+                )}
+              </div>
+              {movieDetail.tagline && (
+                <p className="text-lg text-gray-300 italic mb-4">
+                  "{movieDetail.tagline}"
+                </p>
+              )}
+              <p className="text-gray-300 mb-6">{selectedMovie.plot}</p>
+              <div className="mb-4">
+                <h3 className="font-semibold text-yellow-400 mb-2">Genres</h3>
+                <p className="text-gray-300">{selectedMovie.genre}</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -231,7 +357,11 @@ export default function Home() {
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {movies.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onClick={() => router.push(`?movie=${movie.id}`)}
+                />
               ))}
             </div>
           </section>
@@ -244,7 +374,11 @@ export default function Home() {
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {featured.slice(0, 10).map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onClick={() => router.push(`?movie=${movie.id}`)}
+                />
               ))}
             </div>
           </section>
@@ -253,7 +387,9 @@ export default function Home() {
         {movies.length === 0 && featured.length === 0 && !loading && (
           <div className="text-center py-12 text-gray-400">
             <p className="text-xl">
-              {apiKey ? "Search for your favorite movies!" : "Enter your API key above to get started"}
+              {apiKey
+                ? "Search for your favorite movies!"
+                : "Enter your API key above to get started"}
             </p>
           </div>
         )}
@@ -268,9 +404,18 @@ export default function Home() {
   );
 }
 
-function MovieCard({ movie }: { movie: Movie }) {
+function MovieCard({
+  movie,
+  onClick,
+}: {
+  movie: Movie;
+  onClick: () => void;
+}) {
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform">
+    <div
+      onClick={onClick}
+      className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform cursor-pointer"
+    >
       {movie.poster ? (
         <img
           src={movie.poster}
