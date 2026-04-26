@@ -379,7 +379,54 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     let movieResults: TMDbMovie[] = [];
     let tvResults: TMDbMovie[] = [];
 
-    if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
+    const personRes = await fetch(
+      `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1`
+    );
+    const personData = await personRes.json();
+    const isPersonSearch = query.trim() && personData.results && personData.results.length > 0;
+    
+    if (isPersonSearch) {
+      const personId = personData.results[0].id;
+      
+      const creditsRes = await fetch(
+        `https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`
+      );
+      const creditsData = await creditsRes.json();
+      
+      let allMovies: TMDbMovie[] = [];
+      if (creditsData.cast) {
+        allMovies = creditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
+          ...c,
+          title: c.title || c.original_title || "",
+          release_date: c.release_date || c.first_air_date || "",
+        }));
+      }
+      
+      if (isTv) {
+        const tvCreditsRes = await fetch(
+          `https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`
+        );
+        const tvCreditsData = await tvCreditsRes.json();
+        if (tvCreditsData.cast) {
+          const castTv = tvCreditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
+            ...c,
+            title: c.name || c.original_name || "",
+            release_date: c.first_air_date || c.release_date || "",
+          }));
+          allMovies = [...allMovies, ...castTv];
+        }
+      }
+
+      if (filterStream) {
+        const filteredRes = await fetch(
+          `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&with_cast=${personId}&with_watch_providers=${filterStream}&watch_region=US&page=1`
+        );
+        const filteredData: TMDbResponse = await filteredRes.json();
+        allMovies = filteredData.results || [];
+      }
+      
+      movieResults = allMovies;
+    } else if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
@@ -392,55 +439,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
         );
         const searchTvData: TMDbResponse = await searchTvRes.json();
         tvResults = searchTvData.results || [];
-      }
-    } else if (query.trim()) {
-      const personRes = await fetch(
-        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1`
-      );
-      const personData = await personRes.json();
-      const isPersonSearch = personData.results && personData.results.length > 0;
-      
-      if (isPersonSearch) {
-        const personId = personData.results[0].id;
-        
-        const creditsRes = await fetch(
-          `https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`
-        );
-        const creditsData = await creditsRes.json();
-        
-        let allMovies: TMDbMovie[] = [];
-        if (creditsData.cast) {
-          allMovies = creditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
-            ...c,
-            title: c.title || c.original_title || "",
-            release_date: c.release_date || c.first_air_date || "",
-          }));
-        }
-        
-        if (isTv) {
-          const tvCreditsRes = await fetch(
-            `https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`
-          );
-          const tvCreditsData = await tvCreditsRes.json();
-          if (tvCreditsData.cast) {
-            const castTv = tvCreditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
-              ...c,
-              title: c.name || c.original_name || "",
-              release_date: c.first_air_date || c.release_date || "",
-            }));
-            allMovies = [...allMovies, ...castTv];
-          }
-        }
-
-        if (filterStream) {
-          const filteredRes = await fetch(
-            `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&with_cast=${personId}&with_watch_providers=${filterStream}&watch_region=US&page=1`
-          );
-          const filteredData: TMDbResponse = await filteredRes.json();
-          allMovies = filteredData.results || [];
-        }
-        
-        movieResults = allMovies;
       }
     } else if (filterYear.length > 1) {
       const allMoviePromises = filterYear.map(year => 
