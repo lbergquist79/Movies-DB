@@ -81,17 +81,6 @@ interface TMDbPopularResponse {
   results: TMDbPopularPerson[];
 }
 
-interface TMDbWatchProvidersResponse {
-  page: number;
-  total_pages: number;
-  total_results: number;
-  results: { provider_id: number; provider_name: string; logo_path: string }[];
-}
-
-interface TMDbProvidersResponse {
-  results: { [country: string]: { providers: TMDbProvider[] } };
-}
-
 interface TMDbResponse {
   results: TMDbMovie[];
   total_results?: number;
@@ -150,6 +139,19 @@ function mapMovie(movie: TMDbMovie): Movie {
   };
 }
 
+const STREAM_PROVIDERS = [
+  { provider_id: 8, provider_name: "Netflix" },
+  { provider_id: 9, provider_name: "Amazon Prime Video" },
+  { provider_id: 15, provider_name: "Hulu" },
+  { provider_id: 384, provider_name: "Max" },
+  { provider_id: 337, provider_name: "Disney+" },
+  { provider_id: 531, provider_name: "Paramount+" },
+  { provider_id: 386, provider_name: "Peacock" },
+  { provider_id: 2, provider_name: "Apple TV+" },
+  { provider_id: 43, provider_name: "Starz" },
+  { provider_id: 80, provider_name: "AMC+" },
+];
+
 function HomeContent() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -166,7 +168,8 @@ function HomeContent() {
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
-  const [streamProviders, setStreamProviders] = useState<{ provider_id: number; provider_name: string; logo_path: string }[]>([]);
+  const [filterTvShow, setFilterTvShow] = useState(false);
+  const [streamProviders] = useState<{ provider_id: number; provider_name: string }[]>(STREAM_PROVIDERS);
   const [popularActors, setPopularActors] = useState<TMDbPopularPerson[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
@@ -178,7 +181,6 @@ function HomeContent() {
   useEffect(() => {
     if (API_KEY) {
       fetchFeaturedMovies();
-      fetchStreamProviders();
       fetchPopularActors();
     } else {
       const stored = localStorage.getItem("tmdb_api_key");
@@ -243,10 +245,13 @@ function HomeContent() {
 
 async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   if (!apiKey) return { results: [], total: 0 };
-    let url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
+  
+  const isTv = filterTvShow;
+  const endpoint = isTv ? "tv" : "movie";
+  let url = `https://api.themoviedb.org/3/discover/${endpoint}?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear) {
-      url += `&primary_release_year=${filterYear}`;
+      url += `&first_air_date_year=${filterYear}`;
     }
     if (filterGenre) {
       url += `&with_genres=${filterGenre}`;
@@ -265,7 +270,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     }
     if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream) {
       const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+        `https://api.themoviedb.org/3/search/${endpoint}?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
       const searchData: TMDbResponse = await searchRes.json();
       return { results: searchData.results || [], total: searchData.total_results || 0 };
@@ -284,25 +289,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       setFeatured(mapped);
     } catch (e) {
       console.error("Failed to fetch featured movies", e);
-    }
-  }
-
-  async function fetchStreamProviders() {
-    if (!apiKey) return;
-    try {
-      const res = await fetch(
-        `https://api.themoviedb.org/3/watch/providers/movie?api_key=${apiKey}&language=en-US&watch_region=US`
-      );
-      const data = await res.json();
-      if (data.results) {
-        const sorted = data.results
-          .filter((p: { provider_id: number; provider_name: string; logo_path: string }) => p.provider_id && p.provider_name)
-          .sort((a: { provider_name: string }, b: { provider_name: string }) => a.provider_name.localeCompare(b.provider_name))
-          .slice(0, 50);
-        setStreamProviders(sorted);
-      }
-    } catch (e) {
-      console.error("Failed to fetch stream providers", e);
     }
   }
 
@@ -380,6 +366,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setFilterYear("");
     setFilterActor("");
     setFilterStream("");
+    setFilterTvShow(false);
     setCurrentPage(1);
     setTotalResults(0);
     router.push("/");
@@ -528,6 +515,17 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                       ))}
                     </select>
                   </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={filterTvShow}
+                        onChange={(e) => setFilterTvShow(e.target.checked)}
+                        className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-yellow-500 focus:ring-yellow-500"
+                      />
+                      <span className="text-sm text-gray-300">TV Shows</span>
+                    </label>
+                  </div>
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Release Year</label>
                     <input
@@ -569,7 +567,8 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); setFilterStream(""); }}
+                      onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); setFilterStream("");
+    setFilterTvShow(false); }}
                       className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
                     >
                       Clear Filters
