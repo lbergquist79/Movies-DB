@@ -66,6 +66,27 @@ interface TMDbProvider {
   logo_path: string;
 }
 
+interface TMDbPopularPerson {
+  id: number;
+  name: string;
+  known_for_department: string;
+  profile_path: string;
+}
+
+interface TMDbPopularResponse {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: TMDbPopularPerson[];
+}
+
+interface TMDbWatchProvidersResponse {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: { provider_id: number; provider_name: string; logo_path: string }[];
+}
+
 interface TMDbProvidersResponse {
   results: { [country: string]: { providers: TMDbProvider[] } };
 }
@@ -142,6 +163,11 @@ function HomeContent() {
   const [filterGenre, setFilterGenre] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterActor, setFilterActor] = useState<string>("");
+  const [filterStream, setFilterStream] = useState<string>("");
+  const [streamProviders, setStreamProviders] = useState<{ provider_id: number; provider_name: string; logo_path: string }[]>([]);
+  const [popularActors, setPopularActors] = useState<TMDbPopularPerson[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -150,6 +176,8 @@ function HomeContent() {
   useEffect(() => {
     if (API_KEY) {
       fetchFeaturedMovies();
+      fetchStreamProviders();
+      fetchPopularActors();
     } else {
       const stored = localStorage.getItem("tmdb_api_key");
       if (stored) setApiKey(stored);
@@ -204,9 +232,9 @@ function HomeContent() {
     return data.results || [];
   }
 
-  async function searchWithFilters() {
+  async function searchWithFilters(page: number = 1) {
     if (!apiKey) return [];
-    let url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=1`;
+    let url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear) {
       url += `&primary_release_year=${filterYear}`;
@@ -223,17 +251,20 @@ function HomeContent() {
         url += `&with_cast=${personData.results[0].id}`;
       }
     }
-    if (query.trim() && !filterGenre && !filterYear && !filterActor) {
+    if (filterStream) {
+      url += `&with_watch_providers=${filterStream}&watch_region=US`;
+    }
+    if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream) {
       const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1&include_adult=false`
+        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
       const searchData: TMDbResponse = await searchRes.json();
-      return searchData.results || [];
+      return { results: searchData.results || [], total: searchData.total_results || 0 };
     }
 
     const res = await fetch(url);
     const data: TMDbResponse = await res.json();
-    return data.results || [];
+    return { results: data.results || [], total: data.total_results || 0 };
   }
 
   async function fetchFeaturedMovies() {
@@ -247,7 +278,41 @@ function HomeContent() {
     }
   }
 
-  async function handleSearch(e: React.FormEvent) {
+  async function fetchStreamProviders() {
+    if (!apiKey) return;
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/watch/providers/movie?api_key=${apiKey}&language=en-US&watch_region=US`
+      );
+      const data = await res.json();
+      if (data.results) {
+        const sorted = data.results
+          .filter((p: { provider_id: number; provider_name: string; logo_path: string }) => p.provider_id && p.provider_name)
+          .sort((a: { provider_name: string }, b: { provider_name: string }) => a.provider_name.localeCompare(b.provider_name))
+          .slice(0, 50);
+        setStreamProviders(sorted);
+      }
+    } catch (e) {
+      console.error("Failed to fetch stream providers", e);
+    }
+  }
+
+  async function fetchPopularActors() {
+    if (!apiKey) return;
+    try {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/person/popular?api_key=${apiKey}&language=en-US&page=1`
+      );
+      const data: TMDbPopularResponse = await res.json();
+      if (data.results) {
+        setPopularActors(data.results.slice(0, 50));
+      }
+    } catch (e) {
+      console.error("Failed to fetch popular actors", e);
+    }
+  }
+
+  async function handleSearch(e: React.FormEvent, newPage: number = 1) {
     e.preventDefault();
 
     if (!apiKey) {
@@ -259,9 +324,17 @@ function HomeContent() {
     setError("");
 
     try {
-      const results = await searchWithFilters();
+      const { results, total } = await searchWithFilters(newPage);
       const mapped = results.map(mapMovie);
-      setMovies(mapped);
+      
+      if (newPage === 1) {
+        setMovies(mapped);
+      } else {
+        setMovies(prev => [...prev, ...mapped]);
+      }
+      setTotalResults(total);
+      setCurrentPage(newPage);
+      
       if (mapped.length === 0) {
         setError("No movies found. Try different filters.");
       }
@@ -270,6 +343,10 @@ function HomeContent() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function loadMore() {
+    handleSearch(new Event('submit') as unknown as React.FormEvent, currentPage + 1);
   }
 
   function saveApiKey(key: string) {
@@ -293,6 +370,9 @@ function HomeContent() {
     setFilterGenre("");
     setFilterYear("");
     setFilterActor("");
+    setFilterStream("");
+    setCurrentPage(1);
+    setTotalResults(0);
     router.push("/");
   }
 
@@ -309,7 +389,7 @@ function HomeContent() {
             <button onClick={closeDetail} className="text-yellow-400 hover:text-yellow-300">
               &#8592; Back
             </button>
-            <button onClick={goHome} className="text-yellow-400 hover:text-yellow-300 font-semibold">
+            <button onClick={goHome} className="text-yellow-400 hover:text-yellow-300 font-semibold text-xl">
               Movies-DB
             </button>
           </div>
@@ -452,19 +532,35 @@ function HomeContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Actor</label>
-                    <input
-                      type="text"
+                    <label className="block text-sm text-gray-400 mb-1">Stream</label>
+                    <select
+                      value={filterStream}
+                      onChange={(e) => setFilterStream(e.target.value)}
+                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
+                    >
+                      <option value="">All Providers</option>
+                      {streamProviders.map((p) => (
+                        <option key={p.provider_id} value={p.provider_id}>{p.provider_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Stars</label>
+                    <select
                       value={filterActor}
                       onChange={(e) => setFilterActor(e.target.value)}
-                      placeholder="e.g. Tom Hanks"
                       className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
-                    />
+                    >
+                      <option value="">All Actors</option>
+                      {popularActors.map((a) => (
+                        <option key={a.id} value={a.name}>{a.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); }}
+                      onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); setFilterStream(""); }}
                       className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
                     >
                       Clear Filters
@@ -490,6 +586,18 @@ function HomeContent() {
                 <MovieCard key={movie.id} movie={movie} onClick={() => router.push(`?movie=${movie.id}`)} />
               ))}
             </div>
+            {movies.length < totalResults && movies.length >= 20 && (
+              <div className="mt-8 text-center">
+                <p className="text-gray-400 mb-4">Showing {movies.length} of {totalResults}</p>
+                <button
+                  onClick={loadMore}
+                  disabled={loading}
+                  className="px-8 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
+                >
+                  {loading ? "Loading..." : "More"}
+                </button>
+              </div>
+            )}
           </section>
         )}
 
