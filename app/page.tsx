@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 const TMDB_GENRES = [
   { id: 28, name: "Action" },
@@ -93,6 +94,7 @@ interface TMDbProvidersResponse {
 
 interface TMDbResponse {
   results: TMDbMovie[];
+  total_results?: number;
 }
 
 interface Movie {
@@ -182,12 +184,14 @@ function HomeContent() {
       const stored = localStorage.getItem("tmdb_api_key");
       if (stored) setApiKey(stored);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (movieId && apiKey) {
       fetchMovieDetail(parseInt(movieId));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movieId, apiKey]);
 
   const fetchMovieDetail = useCallback(async (id: number) => {
@@ -399,7 +403,7 @@ function HomeContent() {
           <div className="flex flex-col md:flex-row gap-8">
             <div className="md:w-1/3">
               {selectedMovie.poster ? (
-                <img src={selectedMovie.poster} alt={selectedMovie.title} className="w-full rounded-lg" />
+                <Image src={selectedMovie.poster} alt={selectedMovie.title} className="w-full rounded-lg" width={500} height={750} unoptimized />
               ) : (
                 <div className="w-full h-80 bg-gray-700 rounded-lg flex items-center justify-center">
                   <span className="text-gray-500">No Poster</span>
@@ -637,7 +641,7 @@ function MovieCard({ movie, onClick }: { movie: Movie; onClick: () => void }) {
       className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform cursor-pointer"
     >
       {movie.poster ? (
-        <img src={movie.poster} alt={movie.title} className="w-full h-56 object-cover" />
+        <Image src={movie.poster} alt={movie.title} className="w-full h-56 object-cover" width={500} height={750} unoptimized />
       ) : (
         <div className="w-full h-56 bg-gray-700 flex items-center justify-center">
           <span className="text-gray-500">No Poster</span>
