@@ -169,7 +169,7 @@ function HomeContent() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterGenre, setFilterGenre] = useState<string>("");
-  const [filterYear, setFilterYear] = useState<string[]>(["2025"]);
+  const [filterYear, setFilterYear] = useState<string[]>([]);
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterTvShow, setFilterTvShow] = useState(false);
