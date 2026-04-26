@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface TMDbMovie {
@@ -25,16 +24,6 @@ interface TMDbDetail {
   runtime: number;
   status: string;
   tagline: string;
-  external_ids: {
-    imdb_id: string;
-    freebase_mid: string;
-    freebase_id: string;
-    tvdb_id: number;
-    tvrage_id: number;
-    facebook_id: string;
-    instagram_id: string;
-    twitter_id: string;
-  };
 }
 
 interface TMDbResponse {
@@ -94,7 +83,7 @@ function mapMovie(movie: TMDbMovie): Movie {
   };
 }
 
-export default function Home() {
+function HomeContent() {
   const [query, setQuery] = useState("");
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
@@ -128,7 +117,7 @@ export default function Home() {
     setDetailLoading(true);
     try {
       const res = await fetch(
-        `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&append_to_response=external_ids`
+        `https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=en-US`
       );
       const data: TMDbDetail = await res.json();
       setMovieDetail(data);
@@ -447,5 +436,13 @@ function MovieCard({
         )}
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-900" />}>
+      <HomeContent />
+    </Suspense>
   );
 }
