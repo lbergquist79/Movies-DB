@@ -28,8 +28,12 @@ const TMDB_GENRES = [
 
 interface TMDbMovie {
   id: number;
-  title: string;
-  release_date: string;
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  release_date?: string;
+  first_air_date?: string;
   poster_path: string;
   overview: string;
   genre_ids: number[];
@@ -355,8 +359,8 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
         if (creditsData.cast) {
           const castMovies = creditsData.cast.slice(0, 20).map((c: TMDbMovie) => ({
             ...c,
-            title: c.title || c.original_title,
-            release_date: c.release_date,
+            title: c.title || c.original_title || "",
+            release_date: c.release_date || c.first_air_date || "",
           }));
           movieResults = castMovies;
         }
@@ -369,8 +373,8 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
           if (tvCreditsData.cast) {
             const castTv = tvCreditsData.cast.slice(0, 20).map((c: TMDbMovie) => ({
               ...c,
-              title: c.name || c.original_name,
-              release_date: c.first_air_date,
+              title: c.name || c.original_name || "",
+              release_date: c.first_air_date || c.release_date || "",
             }));
             tvResults = castTv;
           }
