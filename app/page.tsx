@@ -227,7 +227,7 @@ function HomeContent() {
     }
   }, [apiKey]);
 
-  async function fetchPopularMovies() {
+  async function fetchPopularMovies(): Promise<TMDbMovie[]> {
     if (!apiKey) return [];
     const res = await fetch(
       `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&language=en-US&page=1`
@@ -236,8 +236,13 @@ function HomeContent() {
     return data.results || [];
   }
 
-  async function searchWithFilters(page: number = 1) {
-    if (!apiKey) return [];
+  interface SearchResult {
+  results: TMDbMovie[];
+  total: number;
+}
+
+async function searchWithFilters(page: number = 1): Promise<SearchResult> {
+  if (!apiKey) return { results: [], total: 0 };
     let url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear) {
