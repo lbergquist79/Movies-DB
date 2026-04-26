@@ -130,7 +130,7 @@ const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 function mapMovie(movie: TMDbMovie): Movie {
   return {
     id: movie.id,
-    title: movie.title,
+    title: movie.title || movie.name || "",
     year: movie.release_date ? movie.release_date.split("-")[0] : "",
     poster: movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : "",
     plot: movie.overview || "",
