@@ -247,13 +247,32 @@ function HomeContent() {
 
       const sequels: TMDbMovie[] = [];
       const sameGenreActor: TMDbMovie[] = [];
+      
+      const titleWords = movieTitle.split(" ").filter(w => w.length > 2 && !["the", "and", "with", "from"].includes(w));
+      
+      if (titleWords.length > 0) {
+        try {
+          const searchRes = await fetch(
+            `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(titleWords[0])}&language=en-US&page=1`
+          );
+          const searchData: TMDbResponse = await searchRes.json();
+          if (searchData.results) {
+            for (const m of searchData.results) {
+              if (m.id === id) continue;
+              const mTitle = (m.title || "").toLowerCase();
+              if (titleWords.some(w => mTitle.includes(w) && w.length > 3)) {
+                sequels.push(m);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to search for sequels", e);
+        }
+      }
 
       if (similarData.results) {
         for (const m of similarData.results) {
-          const mTitle = (m.title || "").toLowerCase();
-          if (mTitle.includes(movieTitle) || movieTitle.includes(mTitle)) {
-            sequels.push(m);
-          } else if (mainGenre && m.genre_ids?.includes(mainGenre)) {
+          if (!sequels.find(s => s.id === m.id) && mainGenre && m.genre_ids?.includes(mainGenre)) {
             sameGenreActor.push(m);
           }
         }
