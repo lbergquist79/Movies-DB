@@ -2,6 +2,24 @@
 
 import { useState, useEffect } from "react";
 
+interface ApiMovie {
+  "#TITLE": string;
+  "#YEAR": string;
+  "#IMDB_ID": string;
+  "#RANK": string;
+  "#ACTORS": string;
+  "#AKA": string;
+  "#IMDB_URL": string;
+  "#IMG_POSTER": string;
+  photo_width?: number;
+  photo_height?: number;
+}
+
+interface ApiResponse {
+  description: ApiMovie[];
+  error_code: number;
+}
+
 interface Movie {
   id: string;
   title: string;
@@ -13,8 +31,17 @@ interface Movie {
   imdb_rating: string;
 }
 
-interface SearchResult {
-  Result: Movie[];
+function mapApiMovie(apiMovie: ApiMovie): Movie {
+  return {
+    id: apiMovie["#IMDB_ID"],
+    title: apiMovie["#TITLE"],
+    year: apiMovie["#YEAR"],
+    poster: apiMovie["#IMG_POSTER"] || "",
+    plot: apiMovie["#AKA"] || "",
+    genre: apiMovie["#ACTORS"] || "",
+    director: "",
+    imdb_rating: apiMovie["#RANK"] || "",
+  };
 }
 
 export default function Home() {
@@ -33,8 +60,9 @@ export default function Home() {
       const res = await fetch(
         "https://imdb.iamidiotareyoutoo.com/search?tt=batman"
       );
-      const data: SearchResult = await res.json();
-      setFeatured(data.Result || []);
+      const data: ApiResponse = await res.json();
+      const mapped = (data.description || []).map(mapApiMovie);
+      setFeatured(mapped);
     } catch (e) {
       console.error("Failed to fetch featured movies", e);
     }
@@ -53,9 +81,10 @@ export default function Home() {
           query
         )}`
       );
-      const data: SearchResult = await res.json();
-      setMovies(data.Result || []);
-      if (data.Result?.length === 0) {
+      const data: ApiResponse = await res.json();
+      const mapped = (data.description || []).map(mapApiMovie);
+      setMovies(mapped);
+      if (mapped.length === 0) {
         setError("No movies found. Try a different search.");
       }
     } catch (e) {
@@ -143,7 +172,7 @@ export default function Home() {
 function MovieCard({ movie }: { movie: Movie }) {
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform">
-      {movie.poster && movie.poster !== "N/A" ? (
+      {movie.poster ? (
         <img
           src={movie.poster}
           alt={movie.title}
@@ -158,16 +187,16 @@ function MovieCard({ movie }: { movie: Movie }) {
         <h3 className="font-semibold text-lg mb-1 truncate">{movie.title}</h3>
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
           <span>{movie.year}</span>
-          {movie.imdb_rating && movie.imdb_rating !== "N/A" && (
+          {movie.imdb_rating && (
             <span className="text-yellow-400">★ {movie.imdb_rating}</span>
           )}
         </div>
-        {movie.genre && movie.genre !== "N/A" && (
+        {movie.genre && (
           <p className="text-sm text-gray-400 mb-2 line-clamp-2">
             {movie.genre}
           </p>
         )}
-        {movie.plot && movie.plot !== "N/A" && (
+        {movie.plot && (
           <p className="text-sm text-gray-300 line-clamp-3">{movie.plot}</p>
         )}
       </div>
