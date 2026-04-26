@@ -181,6 +181,7 @@ function HomeContent() {
   const [totalResults, setTotalResults] = useState(0);
   const [sortBy, setSortBy] = useState<string>("stars");
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [movieCredits, setMovieCredits] = useState<{ name: string; character: string }[]>([]);
   const [favorites, setFavorites] = useState<Movie[]>([]);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -213,6 +214,7 @@ function HomeContent() {
     setDetailLoading(true);
     setWatchProviders([]);
     setSimilarMovies([]);
+    setMovieCredits([]);
     try {
       const [detailRes, providersRes, similarRes, creditsRes] = await Promise.all([
         fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=en-US`),
@@ -224,6 +226,14 @@ function HomeContent() {
       const providersData: TMDbWatchProviders = await providersRes.json();
       const similarData: TMDbResponse = await similarRes.json();
       const creditsData = await creditsRes.json();
+
+      if (creditsData.cast) {
+        const topCast = creditsData.cast.slice(0, 5).map((c: { name: string; character: string }) => ({
+          name: c.name,
+          character: c.character
+        }));
+        setMovieCredits(topCast);
+      }
 
       const mainGenre = detailData.genres?.[0]?.id;
       const mainActor = creditsData.cast?.[0]?.id;
@@ -565,6 +575,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setMovieDetail(null);
     setWatchProviders([]);
     setSimilarMovies([]);
+    setMovieCredits([]);
     setMovies([]);
     setQuery("");
     setFilterGenre("");
@@ -643,6 +654,19 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                 <h3 className="font-semibold text-yellow-400 mb-2">Genres</h3>
                 <p className="text-gray-300">{selectedMovie.genre}</p>
               </div>
+              {movieCredits.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-semibold text-yellow-400 mb-2">Main Actors</h3>
+                  <ul className="text-gray-300">
+                    {movieCredits.map((credit, idx) => (
+                      <li key={idx}>
+                        <span className="text-white">{credit.name}</span>
+                        {credit.character && <span className="text-gray-400"> as {credit.character}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {watchProviders.length > 0 && (
                 <div className="mb-4">
                   <h3 className="font-semibold text-yellow-400 mb-2">Streaming On</h3>
