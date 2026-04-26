@@ -204,6 +204,13 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
+    if (query && apiKey && !selectedMovie) {
+      handleSearch(new Event('submit') as unknown as React.FormEvent, 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, apiKey]);
+
+  useEffect(() => {
     if (movieId && apiKey) {
       fetchMovieDetail(parseInt(movieId));
     }
@@ -660,7 +667,15 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <ul className="text-gray-300">
                     {movieCredits.map((credit, idx) => (
                       <li key={idx}>
-                        <span className="text-white">{credit.name}</span>
+                        <button
+                          onClick={() => {
+                            setQuery(credit.name);
+                            router.push("/");
+                          }}
+                          className="text-white hover:text-yellow-400 underline"
+                        >
+                          {credit.name}
+                        </button>
                         {credit.character && <span className="text-gray-400"> as {credit.character}</span>}
                       </li>
                     ))}
