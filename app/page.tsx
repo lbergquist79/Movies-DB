@@ -263,14 +263,16 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   if (!apiKey) return { results: [], total: 0 };
   
   const isTv = filterTvShow;
-  const endpoint = isTv ? "tv" : "movie";
-  let url = `https://api.themoviedb.org/3/discover/${endpoint}?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
+  let movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
+  let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
     if (filterYear) {
-      url += `&${isTv ? "first_air_date_year" : "primary_release_year"}=${filterYear}`;
+      movieUrl += `&primary_release_year=${filterYear}`;
+      tvUrl += `&first_air_date_year=${filterYear}`;
     }
     if (filterGenre) {
-      url += `&with_genres=${filterGenre}`;
+      movieUrl += `&with_genres=${filterGenre}`;
+      tvUrl += `&with_genres=${filterGenre}`;
     }
     if (filterActor) {
       const personRes = await fetch(
@@ -278,29 +280,60 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       );
       const personData = await personRes.json();
       if (personData.results?.[0]?.id) {
-        url += `&with_cast=${personData.results[0].id}`;
+        movieUrl += `&with_cast=${personData.results[0].id}`;
+        tvUrl += `&with_cast=${personData.results[0].id}`;
       }
     }
     if (filterStream) {
-      url += `&with_watch_providers=${filterStream}&watch_region=US`;
+      movieUrl += `&with_watch_providers=${filterStream}&watch_region=US`;
+      tvUrl += `&with_watch_providers=${filterStream}&watch_region=US`;
     }
     if (filterRating) {
-      url += `&certification_country=US&certification=${filterRating}`;
+      movieUrl += `&certification_country=US&certification=${filterRating}`;
     }
     if (filterStars) {
-      url += `&vote_average.gte=${filterStars}`;
-    }
-    if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream && !filterRating && !filterStars) {
-      const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/${endpoint}?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
-      );
-      const searchData: TMDbResponse = await searchRes.json();
-      return { results: searchData.results || [], total: searchData.total_results || 0 };
+      movieUrl += `&vote_average.gte=${filterStars}`;
+      tvUrl += `&vote_average.gte=${filterStars}`;
     }
 
-    const res = await fetch(url);
-    const data: TMDbResponse = await res.json();
-    return { results: data.results || [], total: data.total_results || 0 };
+    let movieResults: TMDbMovie[] = [];
+    let tvResults: TMDbMovie[] = [];
+
+    if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream && !filterRating && !filterStars) {
+      const searchRes = await fetch(
+        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+      );
+      const searchData: TMDbResponse = await searchRes.json();
+      movieResults = searchData.results || [];
+      
+      if (isTv) {
+        const searchTvRes = await fetch(
+          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+        );
+        const searchTvData: TMDbResponse = await searchTvRes.json();
+        tvResults = searchTvData.results || [];
+      }
+    } else if (isTv) {
+      const [movieRes, tvRes] = await Promise.all([
+        fetch(movieUrl),
+        fetch(tvUrl),
+      ]);
+      const movieData: TMDbResponse = await movieRes.json();
+      const tvData: TMDbResponse = await tvRes.json();
+      movieResults = movieData.results || [];
+      tvResults = tvData.results || [];
+    } else {
+      const res = await fetch(movieUrl);
+      const data: TMDbResponse = await res.json();
+      movieResults = data.results || [];
+    }
+
+    const allResults = isTv ? [...movieResults, ...tvResults] : movieResults;
+    
+    if (isTv && page === 1) {
+      return { results: allResults, total: movieResults.length + tvResults.length };
+    }
+    return { results: allResults, total: allResults.length };
   }
 
   async function fetchFeaturedMovies() {
