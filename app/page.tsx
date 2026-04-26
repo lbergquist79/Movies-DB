@@ -667,6 +667,13 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                       <li key={idx}>
                         <button
                           onClick={() => {
+                            setFilterGenre("");
+                            setFilterYear([]);
+                            setFilterActor("");
+                            setFilterStream("");
+                            setFilterTvShow(false);
+                            setFilterRating("");
+                            setFilterStars("");
                             setQuery(credit.name);
                             router.push("/");
                           }}
