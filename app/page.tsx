@@ -169,7 +169,7 @@ function HomeContent() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterGenre, setFilterGenre] = useState<string>("");
-  const [filterYear, setFilterYear] = useState<string>("2025");
+  const [filterYear, setFilterYear] = useState<string[]>(["2025"]);
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterTvShow, setFilterTvShow] = useState(false);
@@ -307,9 +307,10 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   let movieUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
   let tvUrl = `https://api.themoviedb.org/3/discover/tv?api_key=${apiKey}&language=en-US&sort_by=popularity.desc&page=${page}`;
 
-    if (filterYear) {
-      movieUrl += `&primary_release_year=${filterYear}`;
-      tvUrl += `&first_air_date_year=${filterYear}`;
+    if (filterYear.length > 0) {
+      const years = filterYear.join(",");
+      movieUrl += `&primary_release_year=${years}`;
+      tvUrl += `&first_air_date_year=${years}`;
     }
     if (filterGenre) {
       movieUrl += `&with_genres=${filterGenre}`;
@@ -387,7 +388,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       }
       
       movieResults = allMovies;
-    } else if (query.trim() && !filterGenre && !filterYear && !filterActor && !filterStream && !filterRating && !filterStars) {
+    } else if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
@@ -515,7 +516,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setMovies([]);
     setQuery("");
     setFilterGenre("");
-    setFilterYear("");
+    setFilterYear([]);
     setFilterActor("");
     setFilterStream("");
     setFilterTvShow(false);
@@ -717,9 +718,13 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Release Year</label>
                     <select
+                      multiple
                       value={filterYear}
-                      onChange={(e) => setFilterYear(e.target.value)}
-                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm"
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                        setFilterYear(selected.length > 0 ? selected : []);
+                      }}
+                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm h-24"
                     >
                       <option value="">All Years</option>
                       {[2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2014, 2013, 2012, 2011, 2010, 2009, 2008, 2007, 2006, 2005, 2004, 2003, 2002, 2001, 2000, 1999, 1998, 1997, 1996, 1995, 1994, 1993, 1992, 1991, 1990, 1989, 1988, 1987, 1986, 1985, 1984, 1983, 1982, 1981, 1980, 1979, 1978, 1977, 1976, 1975, 1974, 1973, 1972, 1971, 1970, 1969, 1968, 1967, 1966, 1965, 1964, 1963, 1962, 1961, 1960].map(y => (
@@ -773,7 +778,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => { setFilterGenre(""); setFilterYear(""); setFilterActor(""); setFilterStream("");
+                      onClick={() => { setFilterGenre(""); setFilterYear([]); setFilterActor(""); setFilterStream("");
     setFilterTvShow(false); setFilterRating(""); setFilterStars(""); }}
                       className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
                     >
