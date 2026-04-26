@@ -170,11 +170,11 @@ function HomeContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterGenre, setFilterGenre] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string[]>([]);
-  const [filterActor, setFilterActor] = useState<string>("");
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterTvShow, setFilterTvShow] = useState(false);
   const [filterRating, setFilterRating] = useState<string>("");
   const [filterStars, setFilterStars] = useState<string>("");
+  const [actorSearch, setActorSearch] = useState<string>("");
   const [streamProviders] = useState<{ provider_id: number; provider_name: string }[]>(STREAM_PROVIDERS);
   const [popularActors, setPopularActors] = useState<TMDbPopularPerson[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -354,16 +354,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       movieUrl += `&with_genres=${filterGenre}`;
       tvUrl += `&with_genres=${filterGenre}`;
     }
-    if (filterActor) {
-      const personRes = await fetch(
-        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(filterActor)}&page=1`
-      );
-      const personData = await personRes.json();
-      if (personData.results?.[0]?.id) {
-        movieUrl += `&with_cast=${personData.results[0].id}`;
-        tvUrl += `&with_cast=${personData.results[0].id}`;
-      }
-    }
     if (filterStream) {
       movieUrl += `&with_watch_providers=${filterStream}&watch_region=US`;
       tvUrl += `&with_watch_providers=${filterStream}&watch_region=US`;
@@ -379,7 +369,49 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     let movieResults: TMDbMovie[] = [];
     let tvResults: TMDbMovie[] = [];
 
-    if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
+    if (actorSearch.trim()) {
+      const personRes = await fetch(
+        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(actorSearch)}&language=en-US&page=1`
+      );
+      const personData = await personRes.json();
+      const personId = personData.results?.[0]?.id;
+      
+      if (personId) {
+        if (filterStream) {
+          const filteredRes = await fetch(
+            `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&with_cast=${personId}&with_watch_providers=${filterStream}&watch_region=US&page=1`
+          );
+          const filteredData: TMDbResponse = await filteredRes.json();
+          movieResults = filteredData.results || [];
+        } else {
+          const creditsRes = await fetch(
+            `https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`
+          );
+          const creditsData = await creditsRes.json();
+          if (creditsData.cast) {
+            movieResults = creditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
+              ...c,
+              title: c.title || c.original_title || "",
+              release_date: c.release_date || c.first_air_date || "",
+            }));
+          }
+          if (isTv) {
+            const tvCreditsRes = await fetch(
+              `https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`
+            );
+            const tvCreditsData = await tvCreditsRes.json();
+            if (tvCreditsData.cast) {
+              const castTv = tvCreditsData.cast.slice(0, 50).map((c: TMDbMovie) => ({
+                ...c,
+                title: c.name || c.original_name || "",
+                release_date: c.first_air_date || c.release_date || "",
+              }));
+              tvResults = castTv;
+            }
+          }
+        }
+      }
+    } else if (query.trim() && !filterGenre && filterYear.length === 0 && !filterStream && !filterRating && !filterStars) {
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
@@ -393,18 +425,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
         const searchTvData: TMDbResponse = await searchTvRes.json();
         tvResults = searchTvData.results || [];
       }
-    } else if (filterActor || query.trim()) {
-      const personRes = await fetch(
-        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(filterActor || query)}&language=en-US&page=1`
-      );
-      const personData = await personRes.json();
-      const isPersonSearch = personData.results && personData.results.length > 0;
-      
-      if (isPersonSearch) {
-        const personId = personData.results[0].id;
-        
-        if (filterStream) {
-          const filteredRes = await fetch(
+    } else if (filterYear.length > 1) {
             `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&with_cast=${personId}&with_watch_providers=${filterStream}&watch_region=US&page=1`
           );
           const filteredData: TMDbResponse = await filteredRes.json();
@@ -585,9 +606,9 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setMovieCredits([]);
     setMovies([]);
     setQuery("");
+    setActorSearch("");
     setFilterGenre("");
     setFilterYear([]);
-    setFilterActor("");
     setFilterStream("");
     setFilterTvShow(false);
     setFilterRating("");
@@ -599,9 +620,10 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
   }
 
   function searchActor(actorName: string) {
+    setQuery("");
+    setActorSearch(actorName);
     setFilterGenre("");
     setFilterYear([]);
-    setFilterActor("");
     setFilterStream("");
     setFilterTvShow(false);
     setFilterRating("");
@@ -614,7 +636,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     setMovies([]);
     setCurrentPage(1);
     setTotalResults(0);
-    setQuery(actorName);
     router.push("/");
   }
 
@@ -778,7 +799,7 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for movies or actors..."
+                placeholder="Search movies..."
                 className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
               />
               <button
@@ -794,6 +815,52 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                 className="px-6 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
               >
                 {loading ? "Searching..." : "Search"}
+              </button>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <input
+                type="text"
+                value={actorSearch}
+                onChange={(e) => setActorSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && actorSearch.trim() && apiKey) {
+                    e.preventDefault();
+                    setLoading(true);
+                    setError("");
+                  }
+                }}
+                placeholder="Search actors..."
+                className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!actorSearch.trim()) return;
+                  if (!apiKey) {
+                    setError("Please enter your TMDB API key first.");
+                    return;
+                  }
+                  setLoading(true);
+                  setError("");
+                  try {
+                    const { results, total } = await searchWithFilters(1);
+                    const mapped = results.map(mapMovie);
+                    setMovies(mapped);
+                    setTotalResults(total);
+                    setCurrentPage(1);
+                    if (mapped.length === 0) {
+                      setError("No movies found. Try different filters.");
+                    }
+                  } catch (e) {
+                    setError("Failed to search movies. Please try again.");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading || !apiKey}
+                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50"
+              >
+                Actor Search
               </button>
             </div>
             {showFilters && (
@@ -886,8 +953,8 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
                   <div className="flex items-end">
                     <button
                       type="button"
-                      onClick={() => { setFilterGenre(""); setFilterYear([]); setFilterActor(""); setFilterStream("");
-    setFilterTvShow(false); setFilterRating(""); setFilterStars(""); }}
+                      onClick={() => { setFilterGenre(""); setFilterYear([]); setFilterStream("");
+    setFilterTvShow(false); setFilterRating(""); setFilterStars(""); setActorSearch(""); }}
                       className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm"
                     >
                       Clear Filters
