@@ -211,6 +211,13 @@ function HomeContent() {
   }, [query, apiKey]);
 
   useEffect(() => {
+    if (actorSearch && apiKey && !selectedMovie) {
+      handleSearch(new Event('submit') as unknown as React.FormEvent, 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actorSearch, apiKey]);
+
+  useEffect(() => {
     if (movieId && apiKey) {
       fetchMovieDetail(parseInt(movieId));
     }
