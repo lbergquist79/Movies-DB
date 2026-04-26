@@ -262,7 +262,7 @@ function HomeContent() {
               </div>
               {movieDetail.tagline && (
                 <p className="text-lg text-gray-300 italic mb-4">
-                  "{movieDetail.tagline}"
+                  &ldquo;{movieDetail.tagline}&rdquo;
                 </p>
               )}
               <p className="text-gray-300 mb-6">{selectedMovie.plot}</p>
