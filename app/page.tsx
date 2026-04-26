@@ -343,13 +343,28 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
     let movieResults: TMDbMovie[] = [];
     let tvResults: TMDbMovie[] = [];
 
-    const personRes = await fetch(
-      `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1`
-    );
-    const personData = await personRes.json();
-    const isPersonSearch = query.trim() && personData.results && personData.results.length > 0;
-    
-    if (isPersonSearch) {
+    if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
+      const searchRes = await fetch(
+        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+      );
+      const searchData: TMDbResponse = await searchRes.json();
+      movieResults = searchData.results || [];
+      
+      if (isTv) {
+        const searchTvRes = await fetch(
+          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
+        );
+        const searchTvData: TMDbResponse = await searchTvRes.json();
+        tvResults = searchTvData.results || [];
+      }
+    } else {
+      const personRes = await fetch(
+        `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=1`
+      );
+      const personData = await personRes.json();
+      const isPersonSearch = query.trim() && personData.results && personData.results.length > 0;
+      
+      if (isPersonSearch) {
       const personId = personData.results[0].id;
       
       const creditsRes = await fetch(
@@ -390,20 +405,6 @@ async function searchWithFilters(page: number = 1): Promise<SearchResult> {
       }
       
       movieResults = allMovies;
-    } else if (query.trim() && !filterGenre && filterYear.length === 0 && !filterActor && !filterStream && !filterRating && !filterStars) {
-      const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
-      );
-      const searchData: TMDbResponse = await searchRes.json();
-      movieResults = searchData.results || [];
-      
-      if (isTv) {
-        const searchTvRes = await fetch(
-          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
-        );
-        const searchTvData: TMDbResponse = await searchTvRes.json();
-        tvResults = searchTvData.results || [];
-      }
     } else if (filterYear.length > 1) {
       const allMoviePromises = filterYear.map(year => 
         fetch(`${movieUrl}&primary_release_year=${year}`)
