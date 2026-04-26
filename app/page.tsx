@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 
 interface ApiMovie {
   "#TITLE": string;
@@ -173,25 +172,12 @@ export default function Home() {
 function MovieCard({ movie }: { movie: Movie }) {
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden hover:transform hover:scale-105 transition-transform">
-<<<<<<< HEAD
       {movie.poster ? (
         <img
           src={movie.poster}
           alt={movie.title}
           className="w-full h-80 object-cover"
         />
-=======
-      {movie.poster && movie.poster !== "N/A" ? (
-        <div className="relative w-full h-80">
-          <Image
-            src={movie.poster}
-            alt={movie.title}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
-          />
-        </div>
->>>>>>> c4d13126cd27219ca45721e404487fc356f52fff
       ) : (
         <div className="w-full h-80 bg-gray-700 flex items-center justify-center">
           <span className="text-gray-500">No Poster</span>
