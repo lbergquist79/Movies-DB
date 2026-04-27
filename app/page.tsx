@@ -99,6 +99,12 @@ interface TMDbDetail {
   runtime?: number;
   status: string;
   tagline?: string;
+  release_dates?: {
+    results: {
+      iso_3166_1: string;
+      release_dates: { certification: string; type: number }[];
+    }[];
+  };
 }
 
 interface TMDbWatchProviders {
@@ -268,7 +274,7 @@ function HomeContent() {
       const baseEndpoint = type === "tv" ? "tv" : "movie";
       try {
         const [detailRes, providersRes, similarRes, recommendRes, creditsRes] = await Promise.all([
-          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}?api_key=${apiKey}&language=en-US`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}?api_key=${apiKey}&language=en-US&append_to_response=release_dates`),
           fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/watch/providers?api_key=${apiKey}`),
           fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/similar?api_key=${apiKey}&language=en-US&page=1`),
           fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/recommendations?api_key=${apiKey}&language=en-US&page=1`),
@@ -387,14 +393,29 @@ function HomeContent() {
     }
 
     if (searchType === "tv") {
-      const searchRes = await fetch(
-        `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(tvQuery)}&language=en-US&page=${page}&include_adult=false`
-      );
-      const searchData: TMDbResponse = await searchRes.json();
-      return (searchData.results || []).map((m) => mapMovie(m, true));
+      if (tvQuery.trim()) {
+        const searchRes = await fetch(
+          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(tvQuery)}&language=en-US&page=${page}&include_adult=false`
+        );
+        const searchData: TMDbResponse = await searchRes.json();
+        return (searchData.results || []).map((m) => mapMovie(m, true));
+      } else {
+        let tvUrl = addFilters(tvBase, true);
+        if (filterYear.length === 1) tvUrl += `&first_air_date_year=${filterYear[0]}`;
+        const tvRes = await fetch(tvUrl);
+        const tvData: TMDbResponse = await tvRes.json();
+        return (tvData.results || []).map((m) => mapMovie(m, true));
+      }
     }
 
     if (searchType === "actor") {
+      if (!actorSearch.trim()) {
+        const movieUrl = addFilters(movieBase, false);
+        const res = await fetch(movieUrl);
+        const data: TMDbResponse = await res.json();
+        return (data.results || []).map((m) => mapMovie(m, false));
+      }
+
       const personRes = await fetch(
         `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(actorSearch)}&language=en-US&page=1`
       );
@@ -412,9 +433,12 @@ function HomeContent() {
       let movieResults: TMDbMovie[] = (movieCredData.cast || []).slice(0, 50);
       let tvResults: TMDbMovie[] = (tvCredData.cast || []).slice(0, 50);
 
-      if (filterStars) {
-        movieResults = movieResults.filter((m) => m.vote_average >= parseFloat(filterStars));
-        tvResults = tvResults.filter((m) => m.vote_average >= parseFloat(filterStars));
+      if (filterStars === "6+") {
+        movieResults = movieResults.filter((m) => m.vote_average >= 6);
+        tvResults = tvResults.filter((m) => m.vote_average >= 6);
+      } else if (filterStars === "5-") {
+        movieResults = movieResults.filter((m) => m.vote_average <= 5);
+        tvResults = tvResults.filter((m) => m.vote_average <= 5);
       }
       if (filterGenre) {
         movieResults = movieResults.filter((m) => m.genre_ids?.includes(parseInt(filterGenre)));
@@ -598,6 +622,12 @@ function HomeContent() {
               <div className="flex items-center gap-4 text-gray-400 mb-4 flex-wrap">
                 <span>{selectedMovie.year}</span>
                 {movieDetail.runtime && movieDetail.runtime > 0 && <span>{movieDetail.runtime} min</span>}
+                {selectedMovie.mediaType === "movie" && (() => {
+                  const cert = movieDetail.release_dates?.results
+                    ?.find((r) => r.iso_3166_1 === "US")
+                    ?.release_dates.find((rd) => rd.certification)?.certification;
+                  return cert ? <span className="border border-gray-500 px-1.5 py-0.5 text-xs rounded text-gray-300">{cert}</span> : null;
+                })()}
                 {selectedMovie.imdb_rating && <span className="text-yellow-400">★ {selectedMovie.imdb_rating}/10</span>}
               </div>
               {movieDetail.tagline && (
@@ -794,8 +824,9 @@ function HomeContent() {
                 className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
               />
               <button
-                type="submit"
-                disabled={loading || !apiKey || !actorSearch.trim()}
+                type="button"
+                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
+                disabled={loading || !apiKey}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50"
               >
                 Actor
@@ -811,8 +842,9 @@ function HomeContent() {
                 className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
               />
               <button
-                type="submit"
-                disabled={loading || !apiKey || !tvQuery.trim()}
+                type="button"
+                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "tv")}
+                disabled={loading || !apiKey}
                 className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50"
               >
                 TV Shows
