@@ -64,10 +64,7 @@ const STREAM_PROVIDERS = [
   { provider_id: 80, provider_name: "AMC+" },
 ];
 
-const MPAA_RATINGS = ["G", "PG", "PG-13", "R", "NC-17"];
-
 const FAMILY_CHIPS = [
-  { label: "🎬 Family", genreId: "10751" },
   { label: "🎨 Animation", genreId: "16" },
   { label: "🗺️ Adventure", genreId: "12" },
   { label: "😄 Comedy", genreId: "35" },
@@ -191,7 +188,6 @@ function HomeContent() {
   const [filterStream, setFilterStream] = useState<string>("");
   const [filterRating, setFilterRating] = useState<string>("");
   const [filterStars, setFilterStars] = useState<string>("");
-  const [filterRuntime, setFilterRuntime] = useState<string>("");
 
   const [sortBy, setSortBy] = useState<string>("popularity");
 
@@ -378,9 +374,15 @@ function HomeContent() {
     function addFilters(url: string, isTv: boolean): string {
       if (filterGenre) url += `&with_genres=${filterGenre}`;
       if (filterStream) url += `&with_watch_providers=${filterStream}&watch_region=US`;
-      if (filterStars) url += `&vote_average.gte=${filterStars}`;
-      if (filterRuntime) url += `&with_runtime.lte=${filterRuntime}`;
-      if (filterRating && !isTv) url += `&certification_country=US&certification.lte=${filterRating}`;
+      if (filterStars === "6+") url += `&vote_average.gte=6`;
+      if (filterStars === "5-") url += `&vote_average.lte=5`;
+      if (filterRating && !isTv) {
+        if (filterRating === "PG13+") {
+          url += `&certification_country=US&certification.gte=PG-13`;
+        } else {
+          url += `&certification_country=US&certification.lte=${filterRating}`;
+        }
+      }
       return url;
     }
 
@@ -463,7 +465,7 @@ function HomeContent() {
 
   function clearFilters() {
     setFilterGenre(""); setFilterYear([]); setFilterStream("");
-    setFilterRating(""); setFilterStars(""); setFilterRuntime("");
+    setFilterRating(""); setFilterStars("");
   }
 
   function closeDetail() {
@@ -494,6 +496,11 @@ function HomeContent() {
 
   function applyFamilyChip(genreId: string) {
     setFilterGenre(filterGenre === genreId ? "" : genreId);
+    setShowFilters(true);
+  }
+
+  function applyMpaaChip(mpaaValue: string) {
+    setFilterRating(filterRating === mpaaValue ? "" : mpaaValue);
     setShowFilters(true);
   }
 
@@ -730,6 +737,18 @@ function HomeContent() {
 
           <div className="max-w-2xl mx-auto mb-3 flex flex-wrap gap-2 justify-center items-center">
             <span className="text-xs text-gray-400">Quick:</span>
+            <button
+              onClick={() => applyMpaaChip("PG")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+            >
+              🎬 Family
+            </button>
+            <button
+              onClick={() => applyMpaaChip("PG13+")}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+            >
+              🔞 Adult
+            </button>
             {FAMILY_CHIPS.map((chip) => (
               <button
                 key={chip.genreId}
@@ -826,37 +845,12 @@ function HomeContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Min Rating</label>
+                    <label className="block text-sm text-gray-400 mb-1">Rating</label>
                     <select value={filterStars} onChange={(e) => setFilterStars(e.target.value)}
                       className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm">
                       <option value="">Any</option>
-                      <option value="9">9+ ⭐</option>
-                      <option value="8">8+ ⭐</option>
-                      <option value="7">7+ ⭐</option>
-                      <option value="6">6+ ⭐</option>
-                      <option value="5">5+ ⭐</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Max MPAA Rating</label>
-                    <select value={filterRating} onChange={(e) => setFilterRating(e.target.value)}
-                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm">
-                      <option value="">Any</option>
-                      {MPAA_RATINGS.map((r) => <option key={r} value={r}>{r} and below</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Max Runtime</label>
-                    <select value={filterRuntime} onChange={(e) => setFilterRuntime(e.target.value)}
-                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm">
-                      <option value="">Any length</option>
-                      <option value="75">Under 75 min</option>
-                      <option value="90">Under 90 min</option>
-                      <option value="105">Under 105 min</option>
-                      <option value="120">Under 2 hrs</option>
-                      <option value="150">Under 2.5 hrs</option>
+                      <option value="6+">6+ ⭐</option>
+                      <option value="5-">5- ⭐</option>
                     </select>
                   </div>
 
