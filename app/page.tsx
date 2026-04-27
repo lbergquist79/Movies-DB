@@ -55,13 +55,13 @@ const STREAM_PROVIDERS = [
   { provider_id: 8, provider_name: "Netflix" },
   { provider_id: 9, provider_name: "Prime" },
   { provider_id: 15, provider_name: "Hulu" },
-  { provider_id: 384, provider_name: "Max" },
+  { provider_id: 1899, provider_name: "Max" },
   { provider_id: 337, provider_name: "Disney+" },
   { provider_id: 531, provider_name: "Paramount+" },
   { provider_id: 386, provider_name: "Peacock" },
-  { provider_id: 2, provider_name: "Apple TV+" },
+  { provider_id: 350, provider_name: "Apple TV+" },
   { provider_id: 43, provider_name: "Starz" },
-  { provider_id: 80, provider_name: "AMC+" },
+  { provider_id: 528, provider_name: "AMC+" },
 ];
 
 const FAMILY_CHIPS = [
@@ -379,8 +379,8 @@ function HomeContent() {
       if (filterRating && !isTv) {
         if (filterRating === "PG13+") {
           url += `&certification_country=US&certification.gte=PG-13`;
-        } else {
-          url += `&certification_country=US&certification.lte=${filterRating}`;
+        } else if (filterRating === "PG") {
+          url += `&certification_country=US&certification.gte=G&certification.lte=PG`;
         }
       }
       return url;
