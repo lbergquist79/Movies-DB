@@ -164,6 +164,8 @@ function mapMovie(movie: TMDbMovie, isTv = false): Movie {
 function HomeContent() {
   const [query, setQuery] = useState("");
   const [actorSearch, setActorSearch] = useState("");
+  const [tvQuery, setTvQuery] = useState("");
+  const [searchType, setSearchType] = useState<"movie" | "actor" | "tv">("movie");
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -185,7 +187,6 @@ function HomeContent() {
   const [filterGenre, setFilterGenre] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string[]>([]);
   const [filterStream, setFilterStream] = useState<string>("");
-  const [filterTvShow, setFilterTvShow] = useState(false);
   const [filterRating, setFilterRating] = useState<string>("");
   const [filterStars, setFilterStars] = useState<string>("");
   const [filterRuntime, setFilterRuntime] = useState<string>("");
@@ -205,6 +206,7 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const movieId = searchParams.get("movie");
+  const mediaType = searchParams.get("type") || "movie";
 
   useEffect(() => {
     const key = API_KEY || localStorage.getItem("tmdb_api_key") || "";
@@ -229,9 +231,9 @@ function HomeContent() {
 
   useEffect(() => {
     if (movieId && apiKey) {
-      fetchMovieDetail(parseInt(movieId));
+      fetchMovieDetail(parseInt(movieId), mediaType as "movie" | "tv");
     }
-  }, [movieId, apiKey]);
+  }, [movieId, apiKey, mediaType]);
 
   async function fetchFeaturedMovies() {
     if (!apiKey) return;
@@ -260,18 +262,19 @@ function HomeContent() {
   }
 
   const fetchMovieDetail = useCallback(
-    async (id: number) => {
+    async (id: number, type: "movie" | "tv" = "movie") => {
       setDetailLoading(true);
       setWatchProviders({ flatrate: [], rent: [], buy: [] });
       setSimilarMovies([]);
       setMovieCredits([]);
+      const baseEndpoint = type === "tv" ? "tv" : "movie";
       try {
         const [detailRes, providersRes, similarRes, recommendRes, creditsRes] = await Promise.all([
-          fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${apiKey}&language=en-US`),
-          fetch(`https://api.themoviedb.org/3/movie/${id}/watch/providers?api_key=${apiKey}`),
-          fetch(`https://api.themoviedb.org/3/movie/${id}/similar?api_key=${apiKey}&language=en-US&page=1`),
-          fetch(`https://api.themoviedb.org/3/movie/${id}/recommendations?api_key=${apiKey}&language=en-US&page=1`),
-          fetch(`https://api.themoviedb.org/3/movie/${id}/credits?api_key=${apiKey}&language=en-US`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}?api_key=${apiKey}&language=en-US`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/watch/providers?api_key=${apiKey}`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/similar?api_key=${apiKey}&language=en-US&page=1`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/recommendations?api_key=${apiKey}&language=en-US&page=1`),
+          fetch(`https://api.themoviedb.org/3/${baseEndpoint}/${id}/credits?api_key=${apiKey}&language=en-US`),
         ]);
 
         const detailData: TMDbDetail = await detailRes.json();
@@ -291,13 +294,13 @@ function HomeContent() {
 
         const mappedMovie: Movie = {
           id: detailData.id,
-          title: detailData.title,
-          year: detailData.release_date ? detailData.release_date.split("-")[0] : "",
+          title: detailData.title || detailData.name || "",
+          year: detailData.release_date ? detailData.release_date.split("-")[0] : detailData.first_air_date ? detailData.first_air_date.split("-")[0] : "",
           poster: detailData.poster_path ? `${IMAGE_LARGE}${detailData.poster_path}` : "",
           plot: detailData.overview || "",
           genre: detailData.genres?.map((g) => g.name).join(", ") || "",
           imdb_rating: detailData.vote_average ? detailData.vote_average.toFixed(1) : "",
-          mediaType: "movie",
+          mediaType: type,
         };
         setMovieDetail(detailData);
         setSelectedMovie(mappedMovie);
@@ -325,7 +328,7 @@ function HomeContent() {
           }
           if (combined.length >= 6) break;
         }
-        setSimilarMovies(combined.map((m) => mapMovie(m, false)));
+        setSimilarMovies(combined.map((m) => mapMovie(m, type === "tv")));
       } catch (e) {
         console.error("fetchMovieDetail", e);
       } finally {
@@ -341,19 +344,21 @@ function HomeContent() {
     return "popularity.desc";
   }
 
-  async function handleSearch(e: React.FormEvent, newPage = 1) {
+  async function handleSearch(e: React.FormEvent, newPage = 1, searchTypeParam?: "movie" | "actor" | "tv") {
     e.preventDefault();
     if (!apiKey) { setError("Please enter your TMDB API key first."); return; }
+    const type = searchTypeParam || (actorSearch.trim() ? "actor" : tvQuery.trim() ? "tv" : "movie");
+    setSearchType(type);
     setLoading(true);
     setError("");
     try {
-      const results = await searchWithFilters(newPage);
+      const results = await searchWithFilters(newPage, type);
       if (sortBy === "title") results.sort((a, b) => a.title.localeCompare(b.title));
       if (newPage === 1) setMovies(results);
       else setMovies((prev) => [...prev, ...results]);
       setCurrentPage(newPage);
       setHasMore(results.length === 20);
-      if (newPage === 1 && results.length === 0) setError("No movies found. Try different filters.");
+      if (newPage === 1 && results.length === 0) setError(type === "tv" ? "No TV shows found." : type === "actor" ? "No actors found." : "No movies found. Try different filters.");
     } catch (e) {
       console.error(e);
       setError("Failed to search. Please try again.");
@@ -362,7 +367,7 @@ function HomeContent() {
     }
   }
 
-  async function searchWithFilters(page: number): Promise<Movie[]> {
+  async function searchWithFilters(page: number, searchType: "movie" | "actor" | "tv" = "movie"): Promise<Movie[]> {
     if (!apiKey) return [];
     const sort = apiSortBy();
     const movieBase = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&sort_by=${sort}&page=${page}`;
@@ -377,7 +382,15 @@ function HomeContent() {
       return url;
     }
 
-    if (actorSearch.trim()) {
+    if (searchType === "tv") {
+      const searchRes = await fetch(
+        `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(tvQuery)}&language=en-US&page=${page}&include_adult=false`
+      );
+      const searchData: TMDbResponse = await searchRes.json();
+      return (searchData.results || []).map((m) => mapMovie(m, true));
+    }
+
+    if (searchType === "actor") {
       const personRes = await fetch(
         `https://api.themoviedb.org/3/search/person?api_key=${apiKey}&query=${encodeURIComponent(actorSearch)}&language=en-US&page=1`
       );
@@ -385,33 +398,29 @@ function HomeContent() {
       const personId = personData.results?.[0]?.id;
       if (!personId) return [];
 
-      let movieResults: Movie[] = [];
-      let tvResults: Movie[] = [];
+      const [movieCredRes, tvCredRes] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`),
+        fetch(`https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`),
+      ]);
+      const movieCredData = await movieCredRes.json();
+      const tvCredData = await tvCredRes.json();
 
-      if (filterStream) {
-        const url = addFilters(`${movieBase}&with_cast=${personId}`, false);
-        const res = await fetch(url);
-        const data: TMDbResponse = await res.json();
-        movieResults = (data.results || []).map((m) => mapMovie(m, false));
-      } else {
-        const credRes = await fetch(
-          `https://api.themoviedb.org/3/person/${personId}/movie_credits?api_key=${apiKey}&language=en-US`
-        );
-        const credData = await credRes.json();
-        let cast: TMDbMovie[] = (credData.cast || []).slice(0, 50);
-        if (filterStars) cast = cast.filter((m) => m.vote_average >= parseFloat(filterStars));
-        if (filterGenre) cast = cast.filter((m) => m.genre_ids?.includes(parseInt(filterGenre)));
-        movieResults = cast.map((m) => mapMovie(m, false));
+      let movieResults: TMDbMovie[] = (movieCredData.cast || []).slice(0, 50);
+      let tvResults: TMDbMovie[] = (tvCredData.cast || []).slice(0, 50);
 
-        if (filterTvShow) {
-          const tvRes = await fetch(
-            `https://api.themoviedb.org/3/person/${personId}/tv_credits?api_key=${apiKey}&language=en-US`
-          );
-          const tvData = await tvRes.json();
-          tvResults = (tvData.cast || []).slice(0, 50).map((m: TMDbMovie) => mapMovie(m, true));
-        }
+      if (filterStars) {
+        movieResults = movieResults.filter((m) => m.vote_average >= parseFloat(filterStars));
+        tvResults = tvResults.filter((m) => m.vote_average >= parseFloat(filterStars));
       }
-      return filterTvShow ? [...movieResults, ...tvResults] : movieResults;
+      if (filterGenre) {
+        movieResults = movieResults.filter((m) => m.genre_ids?.includes(parseInt(filterGenre)));
+        tvResults = tvResults.filter((m) => m.genre_ids?.includes(parseInt(filterGenre)));
+      }
+
+      return [
+        ...movieResults.map((m) => mapMovie(m, false)),
+        ...tvResults.map((m) => mapMovie(m, true)),
+      ];
     }
 
     if (
@@ -423,57 +432,22 @@ function HomeContent() {
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
       );
       const searchData: TMDbResponse = await searchRes.json();
-      let movieResults = (searchData.results || []).map((m) => mapMovie(m, false));
-      let tvResults: Movie[] = [];
-      if (filterTvShow) {
-        const tvRes = await fetch(
-          `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
-        );
-        const tvData: TMDbResponse = await tvRes.json();
-        tvResults = (tvData.results || []).map((m) => mapMovie(m, true));
-      }
-      return filterTvShow ? [...movieResults, ...tvResults] : movieResults;
+      return (searchData.results || []).map((m) => mapMovie(m, false));
     }
 
     if (filterYear.length > 1) {
       const moviePromises = filterYear.map((year) =>
         fetch(addFilters(`${movieBase}&primary_release_year=${year}`, false)).then((r) => r.json())
       );
-      const tvPromises = filterTvShow
-        ? filterYear.map((year) =>
-            fetch(addFilters(`${tvBase}&first_air_date_year=${year}`, true)).then((r) => r.json())
-          )
-        : [];
-      const [moviePages, tvPages] = await Promise.all([
-        Promise.all(moviePromises),
-        Promise.all(tvPromises),
-      ]);
-      const movieResults = (moviePages as TMDbResponse[]).flatMap((d) =>
+      const moviePages = await Promise.all(moviePromises);
+      return (moviePages as TMDbResponse[]).flatMap((d) =>
         (d.results || []).map((m) => mapMovie(m, false))
       );
-      const tvResults = filterTvShow
-        ? (tvPages as TMDbResponse[]).flatMap((d) =>
-            (d.results || []).map((m) => mapMovie(m, true))
-          )
-        : [];
-      return filterTvShow ? [...movieResults, ...tvResults] : movieResults;
     }
 
     let movieUrl = addFilters(movieBase, false);
-    let tvUrl = addFilters(tvBase, true);
     if (filterYear.length === 1) {
       movieUrl += `&primary_release_year=${filterYear[0]}`;
-      tvUrl += `&first_air_date_year=${filterYear[0]}`;
-    }
-    if (filterTvShow) {
-      const [movieRes, tvRes] = await Promise.all([fetch(movieUrl), fetch(tvUrl)]);
-      const [movieData, tvData]: [TMDbResponse, TMDbResponse] = await Promise.all([
-        movieRes.json(), tvRes.json(),
-      ]);
-      return [
-        ...(movieData.results || []).map((m) => mapMovie(m, false)),
-        ...(tvData.results || []).map((m) => mapMovie(m, true)),
-      ];
     }
     const res = await fetch(movieUrl);
     const data: TMDbResponse = await res.json();
@@ -487,7 +461,7 @@ function HomeContent() {
 
   function clearFilters() {
     setFilterGenre(""); setFilterYear([]); setFilterStream("");
-    setFilterTvShow(false); setFilterRating(""); setFilterStars(""); setFilterRuntime("");
+    setFilterRating(""); setFilterStars(""); setFilterRuntime("");
   }
 
   function closeDetail() {
@@ -500,18 +474,20 @@ function HomeContent() {
     setSelectedMovie(null); setMovieDetail(null);
     setWatchProviders({ flatrate: [], rent: [], buy: [] });
     setSimilarMovies([]); setMovieCredits([]);
-    setMovies([]); setQuery(""); setActorSearch("");
+    setMovies([]); setQuery(""); setActorSearch(""); setTvQuery("");
+    setSearchType("movie");
     clearFilters(); setCurrentPage(1); setHasMore(false);
     router.push("/");
   }
 
   function searchActor(actorName: string) {
-    setQuery(""); setActorSearch(actorName);
+    setQuery(""); setTvQuery(""); setActorSearch(actorName);
     setSelectedMovie(null); setMovieDetail(null);
     setWatchProviders({ flatrate: [], rent: [], buy: [] });
     setSimilarMovies([]); setMovieCredits([]);
     setMovies([]); setCurrentPage(1); setHasMore(false);
     router.push("/");
+    handleSearch(new Event("submit") as unknown as React.FormEvent, 1, "actor");
   }
 
   function applyFamilyChip(genreId: string) {
@@ -523,7 +499,7 @@ function HomeContent() {
     const pool = movies.length > 0 ? movies : featured;
     if (pool.length === 0) return;
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    router.push(`?movie=${pick.id}`);
+    router.push(`?movie=${pick.id}&type=${pick.mediaType}`);
   }
 
   function toggleFavorite(movie: Movie) {
@@ -682,7 +658,7 @@ function HomeContent() {
                   <h3 className="font-semibold text-yellow-400 mb-4">You Might Also Like</h3>
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                     {similarMovies.map((movie) => (
-                      <div key={movie.id} onClick={() => router.push(`?movie=${movie.id}`)} className="cursor-pointer hover:opacity-80">
+                      <div key={movie.id} onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)} className="cursor-pointer hover:opacity-80">
                         {movie.poster ? (
                           <Image src={movie.poster} alt={movie.title} className="w-full rounded" width={200} height={300} unoptimized />
                         ) : (
@@ -805,6 +781,23 @@ function HomeContent() {
               </button>
             </div>
 
+            <div className="flex gap-2 mt-3">
+              <input
+                type="text"
+                value={tvQuery}
+                onChange={(e) => { setTvQuery(e.target.value); if (e.target.value) setQuery(""); setActorSearch(""); }}
+                placeholder="Search TV shows..."
+                className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+              />
+              <button
+                type="submit"
+                disabled={loading || !apiKey || !tvQuery.trim()}
+                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50"
+              >
+                TV Shows
+              </button>
+            </div>
+
             {showFilters && (
               <div className="mt-4 p-4 bg-gray-800 rounded-lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -815,14 +808,6 @@ function HomeContent() {
                       <option value="">All Genres</option>
                       {TMDB_MOVIE_GENRES.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
-                  </div>
-
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={filterTvShow} onChange={(e) => setFilterTvShow(e.target.checked)}
-                        className="w-4 h-4 rounded bg-gray-700 border-gray-600" />
-                      <span className="text-sm text-gray-300">Include TV Shows</span>
-                    </label>
                   </div>
 
                   <div>
@@ -921,22 +906,63 @@ function HomeContent() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {movies.map((movie) => (
-                    <MovieCard
-                      key={`${movie.mediaType}-${movie.id}`}
-                      movie={movie}
-                      onClick={() => router.push(`?movie=${movie.id}`)}
-                      onFavorite={() => toggleFavorite(movie)}
-                      onWatchlist={() => toggleWatchlist(movie)}
-                      isFavorite={favorites.some((f) => f.id === movie.id)}
-                      inWatchlist={watchlist.some((f) => f.id === movie.id)}
-                    />
-                  ))}
-                </div>
+                {searchType === "actor" && movies.some(m => m.mediaType === "tv") ? (
+                  <div>
+                    {movies.filter(m => m.mediaType === "movie").length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-xl font-semibold text-yellow-400 mb-4">Movies</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {movies.filter(m => m.mediaType === "movie").map((movie) => (
+                            <MovieCard
+                              key={`${movie.mediaType}-${movie.id}`}
+                              movie={movie}
+                              onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
+                              onFavorite={() => toggleFavorite(movie)}
+                              onWatchlist={() => toggleWatchlist(movie)}
+                              isFavorite={favorites.some((f) => f.id === movie.id)}
+                              inWatchlist={watchlist.some((f) => f.id === movie.id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {movies.filter(m => m.mediaType === "tv").length > 0 && (
+                      <div>
+                        <h3 className="text-xl font-semibold text-purple-400 mb-4">TV Shows</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {movies.filter(m => m.mediaType === "tv").map((movie) => (
+                            <MovieCard
+                              key={`${movie.mediaType}-${movie.id}`}
+                              movie={movie}
+                              onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
+                              onFavorite={() => toggleFavorite(movie)}
+                              onWatchlist={() => toggleWatchlist(movie)}
+                              isFavorite={favorites.some((f) => f.id === movie.id)}
+                              inWatchlist={watchlist.some((f) => f.id === movie.id)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {movies.map((movie) => (
+                      <MovieCard
+                        key={`${movie.mediaType}-${movie.id}`}
+                        movie={movie}
+                        onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
+                        onFavorite={() => toggleFavorite(movie)}
+                        onWatchlist={() => toggleWatchlist(movie)}
+                        isFavorite={favorites.some((f) => f.id === movie.id)}
+                        inWatchlist={watchlist.some((f) => f.id === movie.id)}
+                      />
+                    ))}
+                  </div>
+                )}
                 {hasMore && (
                   <div className="mt-8 text-center">
-                    <button onClick={() => handleSearch(new Event("submit") as unknown as React.FormEvent, currentPage + 1)}
+                    <button onClick={() => handleSearch(new Event("submit") as unknown as React.FormEvent, currentPage + 1, searchType)}
                       disabled={loading}
                       className="px-8 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50">
                       {loading ? "Loading..." : "Load More"}
@@ -960,7 +986,7 @@ function HomeContent() {
                     <MovieCard
                       key={movie.id}
                       movie={movie}
-                      onClick={() => router.push(`?movie=${movie.id}`)}
+                      onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
                       onFavorite={() => toggleFavorite(movie)}
                       onWatchlist={() => toggleWatchlist(movie)}
                       isFavorite={favorites.some((f) => f.id === movie.id)}
@@ -1013,7 +1039,7 @@ function HomeContent() {
                 <h2 className="text-2xl font-semibold text-yellow-400 mb-4">Recently Viewed</h2>
                 <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "thin" }}>
                   {recentlyViewed.map((movie) => (
-                    <div key={movie.id} onClick={() => router.push(`?movie=${movie.id}`)}
+                    <div key={movie.id} onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
                       className="flex-shrink-0 w-28 cursor-pointer hover:opacity-80">
                       {movie.poster ? (
                         <Image src={movie.poster} alt={movie.title} width={112} height={168}
@@ -1043,7 +1069,7 @@ function HomeContent() {
                   <ul className="space-y-2">
                     {watchlist.map((movie) => (
                       <li key={movie.id} className="flex items-center justify-between gap-1">
-                        <button onClick={() => router.push(`?movie=${movie.id}`)}
+                        <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
                           className="text-left text-sm text-gray-300 hover:text-blue-400 truncate flex-1">
                           {movie.title}
                         </button>
@@ -1059,7 +1085,7 @@ function HomeContent() {
                   <ul className="space-y-2">
                     {favorites.map((movie) => (
                       <li key={movie.id} className="flex items-center justify-between gap-1">
-                        <button onClick={() => router.push(`?movie=${movie.id}`)}
+                        <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
                           className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate flex-1">
                           {movie.title}
                         </button>
