@@ -91,15 +91,17 @@ interface TMDbMovie {
 
 interface TMDbDetail {
   id: number;
-  title: string;
-  release_date: string;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
   poster_path: string;
   overview: string;
   genres: { id: number; name: string }[];
   vote_average: number;
-  runtime: number;
+  runtime?: number;
   status: string;
-  tagline: string;
+  tagline?: string;
 }
 
 interface TMDbWatchProviders {
