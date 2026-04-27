@@ -590,7 +590,7 @@ function HomeContent() {
               <h1 className="text-3xl font-bold mb-2">{selectedMovie.title}</h1>
               <div className="flex items-center gap-4 text-gray-400 mb-4 flex-wrap">
                 <span>{selectedMovie.year}</span>
-                {movieDetail.runtime > 0 && <span>{movieDetail.runtime} min</span>}
+                {movieDetail.runtime && movieDetail.runtime > 0 && <span>{movieDetail.runtime} min</span>}
                 {selectedMovie.imdb_rating && <span className="text-yellow-400">★ {selectedMovie.imdb_rating}/10</span>}
               </div>
               {movieDetail.tagline && (
