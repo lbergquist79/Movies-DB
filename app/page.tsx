@@ -1006,79 +1006,6 @@ function HomeContent() {
               <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">{error}</div>
             )}
 
-            {showMoodTool && (
-              <section className="mb-10 space-y-6">
-                {/* Mood Axes progress */}
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Mood Axes</p>
-                  <p className="text-sm text-gray-300 mb-3">
-                    {moodAxesProgress < MOOD_AXES.length - 1
-                      ? `Searching keywords... ${moodAxesProgress + 1} / ${MOOD_AXES.length} axes (${MOOD_AXES[moodAxesProgress].label})`
-                      : `${MOOD_AXES.length} / ${MOOD_AXES.length} axes complete`}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {MOOD_AXES.slice(0, moodAxesProgress + 1).map((axis) => (
-                      <span key={axis.key} className="px-3 py-1 rounded-full text-xs bg-gray-700 border border-purple-700 text-purple-300">
-                        {axis.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Generated JSON */}
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Generated JSON — Drop This Into Your App</p>
-                  <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div>
-                        <p className="text-sm font-bold text-white">moodKeywords.json</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Keyed by axis. exclude = without_keywords, include = with_keywords</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(buildMoodJson());
-                          setJsonCopied(true);
-                          setTimeout(() => setJsonCopied(false), 2000);
-                        }}
-                        className="shrink-0 px-4 py-2 border border-gray-500 rounded-lg text-sm text-white hover:bg-gray-700 transition-colors"
-                      >
-                        {jsonCopied ? "Copied!" : "Copy JSON"}
-                      </button>
-                    </div>
-                    <pre className="bg-gray-900 rounded-lg p-4 text-xs text-green-400 overflow-x-auto max-h-52 leading-relaxed">
-                      {moodAxesProgress < MOOD_AXES.length - 1 ? "Building..." : buildMoodJson()}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Discover URL Builder */}
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Discover URL Builder</p>
-                  <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-                    <p className="text-sm font-bold text-white mb-3">
-                      Example query:{" "}
-                      <button
-                        onClick={() => setMoodQuery("sci-fi, less sad, high rated")}
-                        className="text-yellow-400 hover:text-yellow-300 underline"
-                      >
-                        sci-fi, less sad, high rated
-                      </button>
-                    </p>
-                    <input
-                      type="text"
-                      value={moodQuery}
-                      onChange={(e) => setMoodQuery(e.target.value)}
-                      placeholder="e.g. sci-fi, less sad, high rated"
-                      className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-purple-400 mb-3"
-                    />
-                    <pre className="bg-gray-900 rounded-lg p-4 text-xs text-blue-400 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                      {moodQuery.trim() ? buildDiscoverUrl(moodQuery) : "Building..."}
-                    </pre>
-                  </div>
-                </div>
-              </section>
-            )}
-
             {movies.length > 0 && (
               <section className="mb-12">
                 <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
@@ -1306,6 +1233,100 @@ function HomeContent() {
           <p>Powered by The Movie Database (TMDB)</p>
         </div>
       </footer>
+
+      {showMoodTool && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowMoodTool(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 space-y-6">
+              {/* Modal header */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white">🎭 Mood Axes</h2>
+                <button
+                  onClick={() => setShowMoodTool(false)}
+                  className="text-gray-400 hover:text-white text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Axes progress */}
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Mood Axes</p>
+                <p className="text-sm text-gray-300 mb-3">
+                  {moodAxesProgress < MOOD_AXES.length - 1
+                    ? `Searching keywords... ${moodAxesProgress + 1} / ${MOOD_AXES.length} axes (${MOOD_AXES[moodAxesProgress].label})`
+                    : `${MOOD_AXES.length} / ${MOOD_AXES.length} axes complete`}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {MOOD_AXES.slice(0, moodAxesProgress + 1).map((axis) => (
+                    <span key={axis.key} className="px-3 py-1 rounded-full text-xs bg-gray-800 border border-purple-700 text-purple-300">
+                      {axis.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generated JSON */}
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Generated JSON — Drop This Into Your App</p>
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-white">moodKeywords.json</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Keyed by axis. exclude = without_keywords, include = with_keywords</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(buildMoodJson());
+                        setJsonCopied(true);
+                        setTimeout(() => setJsonCopied(false), 2000);
+                      }}
+                      className="shrink-0 px-4 py-2 border border-gray-500 rounded-lg text-sm text-white hover:bg-gray-700 transition-colors"
+                    >
+                      {jsonCopied ? "Copied!" : "Copy JSON"}
+                    </button>
+                  </div>
+                  <pre className="bg-gray-950 rounded-lg p-4 text-xs text-green-400 overflow-x-auto max-h-52 leading-relaxed">
+                    {moodAxesProgress < MOOD_AXES.length - 1 ? "Building..." : buildMoodJson()}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Discover URL Builder */}
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Discover URL Builder</p>
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                  <p className="text-sm font-bold text-white mb-3">
+                    Example query:{" "}
+                    <button
+                      onClick={() => setMoodQuery("sci-fi, less sad, high rated")}
+                      className="text-yellow-400 hover:text-yellow-300 underline"
+                    >
+                      sci-fi, less sad, high rated
+                    </button>
+                  </p>
+                  <input
+                    type="text"
+                    value={moodQuery}
+                    onChange={(e) => setMoodQuery(e.target.value)}
+                    placeholder="e.g. sci-fi, less sad, high rated"
+                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-purple-400 mb-3"
+                  />
+                  <pre className="bg-gray-950 rounded-lg p-4 text-xs text-blue-400 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
+                    {moodQuery.trim() ? buildDiscoverUrl(moodQuery) : "Building..."}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
