@@ -156,6 +156,7 @@ interface TMDbResponse {
   results: TMDbMovie[];
   total_results?: number;
   total_pages?: number;
+  page?: number;
 }
 
 interface Movie {
@@ -256,12 +257,14 @@ function HomeContent() {
       fetchFeaturedMovies();
       fetchPopularActors();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
   useEffect(() => {
     if (movieId && apiKey) {
       fetchMovieDetail(parseInt(movieId), mediaType as "movie" | "tv");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movieId, apiKey, mediaType]);
 
   async function fetchFeaturedMovies() {
