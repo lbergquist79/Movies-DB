@@ -71,15 +71,25 @@ const FAMILY_CHIPS = [
   { label: "🚀 Sci-Fi", genreId: "878" },
 ];
 
-const MOOD_AXES = [
-  { key: "emotional_intensity", label: "Emotional Intensity", with_keywords: ["tearjerker", "emotional", "moving", "heartbreaking", "poignant"], without_keywords: ["lighthearted", "slapstick", "silly", "breezy"] },
-  { key: "happiness", label: "Happiness", with_keywords: ["feel-good", "uplifting", "heartwarming", "cheerful", "optimistic"], without_keywords: ["depressing", "tragic", "bleak", "hopeless", "dark"] },
-  { key: "action_level", label: "Action Level", with_keywords: ["action", "fight scenes", "explosions", "chase", "adrenaline"], without_keywords: ["slow-burn", "meditative", "quiet", "contemplative"] },
-  { key: "humor", label: "Humor", with_keywords: ["comedy", "funny", "hilarious", "witty", "laughs"], without_keywords: ["serious", "grim", "dark tone"] },
-  { key: "fear_tension", label: "Fear / Tension", with_keywords: ["scary", "suspense", "terror", "dread", "creepy"], without_keywords: ["safe", "comfortable", "cozy"] },
-  { key: "romance", label: "Romance", with_keywords: ["romance", "love story", "relationship", "passion", "romantic"], without_keywords: ["platonic", "friendship only", "no romance"] },
-  { key: "complexity", label: "Thought-Provoking Depth", with_keywords: ["thought-provoking", "complex", "philosophical", "intricate", "cerebral"], without_keywords: ["formulaic", "predictable", "simple plot"] },
-  { key: "family_friendly", label: "Family Friendliness", with_keywords: ["family", "wholesome", "all-ages", "kid-friendly", "children"], without_keywords: ["adult content", "explicit", "mature themes"] },
+const MOOD_VIBES = [
+  { key: "nostalgic",    label: "Nostalgic",    emoji: "🕰️", tagline: "take me back in time",      activeClasses: "border-amber-500 bg-amber-900/20 text-amber-300",   genres: [18, 10751], yearCap: 2005 },
+  { key: "thrilled",    label: "Thrilled",     emoji: "😱", tagline: "keep me on the edge",        activeClasses: "border-red-500 bg-red-900/20 text-red-300",         genres: [53, 28] },
+  { key: "emotional",   label: "Emotional",    emoji: "💙", tagline: "make me feel deeply",        activeClasses: "border-blue-500 bg-blue-900/20 text-blue-300",       genres: [18, 10749] },
+  { key: "inspired",    label: "Inspired",     emoji: "✨", tagline: "lift my spirits",            activeClasses: "border-purple-500 bg-purple-900/20 text-purple-300", genres: [18, 99] },
+  { key: "entertained", label: "Entertained",  emoji: "😂", tagline: "make me laugh out loud",    activeClasses: "border-green-500 bg-green-900/20 text-green-300",    genres: [35, 16] },
+  { key: "adventurous", label: "Adventurous",  emoji: "🗺️", tagline: "take me somewhere new",     activeClasses: "border-teal-500 bg-teal-900/20 text-teal-300",      genres: [12, 28] },
+  { key: "romantic",    label: "Romantic",     emoji: "💕", tagline: "feel the love",             activeClasses: "border-rose-500 bg-rose-900/20 text-rose-300",      genres: [10749, 18] },
+  { key: "scared",      label: "Scared",       emoji: "👻", tagline: "give me the chills",        activeClasses: "border-violet-500 bg-violet-900/20 text-violet-300", genres: [27, 53] },
+  { key: "amazed",      label: "Amazed",       emoji: "🤩", tagline: "blow my mind",              activeClasses: "border-cyan-500 bg-cyan-900/20 text-cyan-300",      genres: [878, 14] },
+  { key: "cozy",        label: "Cozy",         emoji: "🛋️", tagline: "warm & comfortable",        activeClasses: "border-orange-500 bg-orange-900/20 text-orange-300", genres: [10751, 35] },
+] as const;
+
+const ENERGY_LABELS = [
+  { label: "Low-key",  sub: "background viewing"   },
+  { label: "Relaxed",  sub: "comfy couch session"   },
+  { label: "Engaged",  sub: "full attention"        },
+  { label: "Pumped",   sub: "edge of your seat"     },
+  { label: "Intense",  sub: "white-knuckle"         },
 ];
 
 interface TMDbMovie {
@@ -207,9 +217,8 @@ function HomeContent() {
   const [filterStars, setFilterStars] = useState<string>("");
 
   const [showMoodTool, setShowMoodTool] = useState(false);
-  const [moodAxesProgress, setMoodAxesProgress] = useState(0);
-  const [moodQuery, setMoodQuery] = useState("");
-  const [jsonCopied, setJsonCopied] = useState(false);
+  const [selectedVibe, setSelectedVibe] = useState<string | null>(null);
+  const [energyLevel, setEnergyLevel] = useState(3);
 
   const [sortBy, setSortBy] = useState<string>("popularity");
 
@@ -254,18 +263,6 @@ function HomeContent() {
       fetchMovieDetail(parseInt(movieId), mediaType as "movie" | "tv");
     }
   }, [movieId, apiKey, mediaType]);
-
-  useEffect(() => {
-    if (!showMoodTool) { setMoodAxesProgress(0); return; }
-    setMoodAxesProgress(0);
-    let idx = 0;
-    const timer = setInterval(() => {
-      idx += 1;
-      setMoodAxesProgress(idx);
-      if (idx >= MOOD_AXES.length - 1) clearInterval(timer);
-    }, 400);
-    return () => clearInterval(timer);
-  }, [showMoodTool]);
 
   async function fetchFeaturedMovies() {
     if (!apiKey) return;
@@ -563,66 +560,45 @@ function HomeContent() {
     router.push(`?movie=${pick.id}&type=${pick.mediaType}`);
   }
 
-  function buildMoodJson(): string {
-    const obj: Record<string, { include: string[]; exclude: string[] }> = {};
-    MOOD_AXES.forEach((axis) => {
-      obj[axis.key] = { include: axis.with_keywords, exclude: axis.without_keywords };
-    });
-    return JSON.stringify(obj, null, 2);
-  }
+  async function searchByMood() {
+    const vibe = MOOD_VIBES.find((v) => v.key === selectedVibe);
+    if (!vibe || !apiKey) return;
 
-  function buildDiscoverUrl(q: string): string {
-    if (!q.trim()) return "";
-    const lower = q.toLowerCase();
-    const params: string[] = [];
+    setLoading(true);
+    setError("");
+    setMovies([]);
+    setCurrentPage(1);
+    setSearchType("movie");
 
-    const genreTerms: Record<string, string> = {
-      "sci-fi": "878", "science fiction": "878", "action": "28",
-      "adventure": "12", "animation": "16", "animated": "16",
-      "comedy": "35", "crime": "80", "documentary": "99",
-      "drama": "18", "family": "10751", "fantasy": "14",
-      "horror": "27", "mystery": "9648", "romance": "10749",
-      "thriller": "53", "western": "37",
-    };
+    // Low energy → sort by acclaim; high energy → sort by popularity/excitement
+    const energyConfig = [
+      { sort: "vote_average.desc", voteMin: 7.5 },
+      { sort: "vote_average.desc", voteMin: 6.5 },
+      { sort: "popularity.desc",   voteMin: 6.0 },
+      { sort: "popularity.desc",   voteMin: 5.5 },
+      { sort: "popularity.desc",   voteMin: 0   },
+    ][energyLevel - 1];
 
-    const genres: string[] = [];
-    for (const [term, id] of Object.entries(genreTerms)) {
-      if (lower.includes(term) && !genres.includes(id)) genres.push(id);
-    }
-    if (genres.length) params.push(`with_genres=${genres.join(",")}`);
+    // At high energy, prefer the more action-oriented genre in the pair
+    const genreId = energyLevel >= 4 ? vibe.genres[1] ?? vibe.genres[0] : vibe.genres[0];
 
-    if (/high.?rated|top.?rated|well.?rated/.test(lower)) {
-      params.push("vote_average.gte=7", "sort_by=vote_average.desc");
-    } else if (/low.?rated|bad/.test(lower)) {
-      params.push("vote_average.lte=5", "sort_by=vote_average.asc");
-    } else {
-      params.push("sort_by=popularity.desc");
-    }
+    let url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&language=en-US&page=1`;
+    url += `&sort_by=${energyConfig.sort}`;
+    url += `&with_genres=${genreId}`;
+    if (energyConfig.voteMin > 0) url += `&vote_average.gte=${energyConfig.voteMin}`;
+    if ("yearCap" in vibe && energyLevel <= 2) url += `&primary_release_date.lte=${vibe.yearCap}-12-31`;
+    url += `&vote_count.gte=50`;
 
-    if (/less.?sad|not.?sad|no.?sad|avoid.?sad/.test(lower)) {
-      params.push("without_keywords=tearjerker,emotional,moving");
+    try {
+      const res = await fetch(url);
+      const data: TMDbResponse = await res.json();
+      setMovies((data.results || []).map((m) => mapMovie(m, false)));
+      setHasMore((data.page || 1) < (data.total_pages || 1));
+    } catch {
+      setError("Failed to fetch movies. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    if (/more.?happy|very.?happy|uplifting|feel.?good/.test(lower)) {
-      params.push("with_keywords=feel-good,uplifting,heartwarming");
-    }
-    if (/less.?scary|not.?scary/.test(lower)) {
-      params.push("without_keywords=scary,terror,dread");
-    }
-    if (/more.?scary|very.?scary|terrifying/.test(lower)) {
-      params.push("with_keywords=scary,suspense,terror");
-    }
-    if (lower.includes("family") || lower.includes("kids")) {
-      params.push("certification_country=US&certification.lte=PG");
-    }
-    if (/less.?action|not.?action|slow/.test(lower)) {
-      params.push("without_keywords=action,fight scenes,explosions");
-    }
-    if (/funny|comedic|hilarious/.test(lower)) {
-      params.push("with_keywords=comedy,funny,hilarious");
-    }
-
-    const key = apiKey || "YOUR_API_KEY";
-    return `https://api.themoviedb.org/3/discover/movie?api_key=${key}&language=en-US&${params.join("&")}`;
   }
 
 
@@ -884,9 +860,9 @@ function HomeContent() {
           <div className="max-w-2xl mx-auto mb-3 flex justify-center">
             <button
               onClick={() => setShowMoodTool(!showMoodTool)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${showMoodTool ? "bg-purple-600 text-white border-purple-600" : "border-gray-600 text-gray-300 hover:border-purple-500 hover:text-purple-400"}`}
+              className={`px-5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${showMoodTool ? "bg-purple-600 text-white border-purple-600" : "border-gray-600 text-gray-300 hover:border-purple-500 hover:text-purple-400"}`}
             >
-              🎭 Mood Axes {showMoodTool ? "▲" : "▼"}
+              🎭 Mood &amp; Vibe Discovery {showMoodTool ? "▲" : "▼"}
             </button>
           </div>
 
@@ -1004,6 +980,90 @@ function HomeContent() {
           <div className="flex-1 min-w-0">
             {error && (
               <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">{error}</div>
+            )}
+
+            {showMoodTool && (
+              <section className="mb-10 bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
+                {/* Header row */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Mood &amp; Vibe Discovery</h2>
+                    <p className="text-sm text-gray-400 mt-1">Find movies that match how you feel right now</p>
+                  </div>
+                  <button
+                    onClick={() => setShowMoodTool(false)}
+                    className="text-gray-500 hover:text-white text-xl leading-none ml-4 shrink-0"
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Vibe selector */}
+                <div className="mb-6">
+                  <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-3">I want to feel…</p>
+                  <div className="flex flex-wrap gap-2">
+                    {MOOD_VIBES.map((vibe) => (
+                      <button
+                        key={vibe.key}
+                        onClick={() => setSelectedVibe(selectedVibe === vibe.key ? null : vibe.key)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                          selectedVibe === vibe.key
+                            ? vibe.activeClasses
+                            : "border-gray-600 bg-gray-700/40 text-gray-300 hover:border-gray-500 hover:text-white"
+                        }`}
+                      >
+                        <span className="mr-1.5">{vibe.emoji}</span>{vibe.label}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedVibe && (
+                    <p className="text-xs text-gray-500 italic mt-2 pl-1">
+                      {MOOD_VIBES.find((v) => v.key === selectedVibe)?.tagline}
+                    </p>
+                  )}
+                </div>
+
+                {/* Energy slider */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">Energy Level</p>
+                    <span className="text-sm font-semibold text-yellow-400">
+                      {ENERGY_LABELS[energyLevel - 1].label}
+                      <span className="text-gray-500 font-normal ml-1">— {ENERGY_LABELS[energyLevel - 1].sub}</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">😴</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      value={energyLevel}
+                      onChange={(e) => setEnergyLevel(Number(e.target.value))}
+                      className="flex-1 accent-yellow-400 cursor-pointer"
+                    />
+                    <span className="text-xl">😤</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600 mt-1 px-8">
+                    <span>Low-key background</span>
+                    <span>Edge-of-seat intense</span>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <button
+                  onClick={searchByMood}
+                  disabled={!selectedVibe || loading || !apiKey}
+                  className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-xl disabled:opacity-40 transition-colors text-sm"
+                >
+                  {loading
+                    ? "Finding movies…"
+                    : selectedVibe
+                    ? `Find ${MOOD_VIBES.find((v) => v.key === selectedVibe)?.label} Movies`
+                    : "Select a vibe above"}
+                </button>
+              </section>
             )}
 
             {movies.length > 0 && (
@@ -1234,99 +1294,6 @@ function HomeContent() {
         </div>
       </footer>
 
-      {showMoodTool && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-          onClick={() => setShowMoodTool(false)}
-        >
-          <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 space-y-6">
-              {/* Modal header */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white">🎭 Mood Axes</h2>
-                <button
-                  onClick={() => setShowMoodTool(false)}
-                  className="text-gray-400 hover:text-white text-2xl leading-none"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Axes progress */}
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Mood Axes</p>
-                <p className="text-sm text-gray-300 mb-3">
-                  {moodAxesProgress < MOOD_AXES.length - 1
-                    ? `Searching keywords... ${moodAxesProgress + 1} / ${MOOD_AXES.length} axes (${MOOD_AXES[moodAxesProgress].label})`
-                    : `${MOOD_AXES.length} / ${MOOD_AXES.length} axes complete`}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {MOOD_AXES.slice(0, moodAxesProgress + 1).map((axis) => (
-                    <span key={axis.key} className="px-3 py-1 rounded-full text-xs bg-gray-800 border border-purple-700 text-purple-300">
-                      {axis.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Generated JSON */}
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Generated JSON — Drop This Into Your App</p>
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div>
-                      <p className="text-sm font-bold text-white">moodKeywords.json</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Keyed by axis. exclude = without_keywords, include = with_keywords</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(buildMoodJson());
-                        setJsonCopied(true);
-                        setTimeout(() => setJsonCopied(false), 2000);
-                      }}
-                      className="shrink-0 px-4 py-2 border border-gray-500 rounded-lg text-sm text-white hover:bg-gray-700 transition-colors"
-                    >
-                      {jsonCopied ? "Copied!" : "Copy JSON"}
-                    </button>
-                  </div>
-                  <pre className="bg-gray-950 rounded-lg p-4 text-xs text-green-400 overflow-x-auto max-h-52 leading-relaxed">
-                    {moodAxesProgress < MOOD_AXES.length - 1 ? "Building..." : buildMoodJson()}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Discover URL Builder */}
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">Discover URL Builder</p>
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-                  <p className="text-sm font-bold text-white mb-3">
-                    Example query:{" "}
-                    <button
-                      onClick={() => setMoodQuery("sci-fi, less sad, high rated")}
-                      className="text-yellow-400 hover:text-yellow-300 underline"
-                    >
-                      sci-fi, less sad, high rated
-                    </button>
-                  </p>
-                  <input
-                    type="text"
-                    value={moodQuery}
-                    onChange={(e) => setMoodQuery(e.target.value)}
-                    placeholder="e.g. sci-fi, less sad, high rated"
-                    className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-purple-400 mb-3"
-                  />
-                  <pre className="bg-gray-950 rounded-lg p-4 text-xs text-blue-400 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                    {moodQuery.trim() ? buildDiscoverUrl(moodQuery) : "Building..."}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
