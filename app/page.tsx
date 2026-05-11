@@ -816,48 +816,52 @@ function HomeContent() {
             </div>
           )}
 
-          <div className="max-w-2xl mx-auto mb-3 flex gap-2 items-center overflow-x-auto pb-1 px-1" style={{ scrollbarWidth: "none" }}>
-            <span className="text-xs text-gray-400 shrink-0">Stream on:</span>
-            <button
-              onClick={() => setFilterStream("")}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === "" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
-            >
-              Any
-            </button>
-            {STREAM_PROVIDERS.map((p) => (
+          <div className="max-w-2xl mx-auto mb-3 flex items-center gap-2 px-1">
+            <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">Stream on:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               <button
-                key={p.provider_id}
-                onClick={() => setFilterStream(filterStream === String(p.provider_id) ? "" : String(p.provider_id))}
-                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === String(p.provider_id) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                onClick={() => setFilterStream("")}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === "" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
-                {p.provider_name}
+                Any
               </button>
-            ))}
+              {STREAM_PROVIDERS.map((p) => (
+                <button
+                  key={p.provider_id}
+                  onClick={() => setFilterStream(filterStream === String(p.provider_id) ? "" : String(p.provider_id))}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === String(p.provider_id) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                >
+                  {p.provider_name}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="max-w-2xl mx-auto mb-3 flex gap-2 items-center overflow-x-auto pb-1 px-1" style={{ scrollbarWidth: "none" }}>
-            <span className="text-xs text-gray-400 shrink-0">Quick:</span>
-            <button
-              onClick={() => applyMpaaChip("PG")}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
-            >
-              🎬 Family
-            </button>
-            <button
-              onClick={() => applyMpaaChip("PG13+")}
-              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
-            >
-              🔞 Adult
-            </button>
-            {FAMILY_CHIPS.map((chip) => (
+          <div className="max-w-2xl mx-auto mb-3 flex items-center gap-2 px-1">
+            <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">Quick:</span>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               <button
-                key={chip.genreId}
-                onClick={() => applyFamilyChip(chip.genreId)}
-                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterGenre === chip.genreId ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                onClick={() => applyMpaaChip("PG")}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
-                {chip.label}
+                🎬 Family
               </button>
-            ))}
+              <button
+                onClick={() => applyMpaaChip("PG13+")}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+              >
+                🔞 Adult
+              </button>
+              {FAMILY_CHIPS.map((chip) => (
+                <button
+                  key={chip.genreId}
+                  onClick={() => applyFamilyChip(chip.genreId)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterGenre === chip.genreId ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="max-w-2xl mx-auto mb-3 flex justify-center">
@@ -870,61 +874,68 @@ function HomeContent() {
           </div>
 
           <form onSubmit={(e) => handleSearch(e, 1)} className="max-w-xl mx-auto">
-            <div className="flex gap-2">
+            {/* Movies input + Filters toggle on one line */}
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); if (e.target.value) setActorSearch(""); }}
                 placeholder="Search movies..."
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="flex-1 min-w-0 px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
               <button
                 type="button"
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-3 rounded-lg ${showFilters ? "bg-yellow-500 text-gray-900" : "bg-gray-600 hover:bg-gray-500"}`}
+                className={`shrink-0 px-3 py-3 rounded-lg text-sm ${showFilters ? "bg-yellow-500 text-gray-900" : "bg-gray-600 hover:bg-gray-500"}`}
               >
                 Filters
               </button>
-              <button
-                type="submit"
-                disabled={loading || !apiKey}
-                className="px-6 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50"
-              >
-                {loading ? "..." : "Search"}
-              </button>
             </div>
 
-            <div className="flex gap-2 mt-3">
+            {/* Actor input */}
+            <div className="mb-2">
               <input
                 type="text"
                 value={actorSearch}
                 onChange={(e) => { setActorSearch(e.target.value); if (e.target.value) setQuery(""); }}
                 placeholder="Search by actor..."
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="w-full px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
-              <button
-                type="button"
-                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
-                disabled={loading || !apiKey}
-                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50"
-              >
-                Actor
-              </button>
             </div>
 
-            <div className="flex gap-2 mt-3">
+            {/* TV input */}
+            <div className="mb-3">
               <input
                 type="text"
                 value={tvQuery}
                 onChange={(e) => { setTvQuery(e.target.value); if (e.target.value) setQuery(""); setActorSearch(""); }}
                 placeholder="Search TV shows..."
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400"
+                className="w-full px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
+            </div>
+
+            {/* Aligned action buttons */}
+            <div className="grid grid-cols-3 gap-2 mb-1">
+              <button
+                type="submit"
+                disabled={loading || !apiKey}
+                className="py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 text-sm"
+              >
+                {loading ? "…" : "Search"}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
+                disabled={loading || !apiKey}
+                className="py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 text-sm"
+              >
+                Actor
+              </button>
               <button
                 type="button"
                 onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "tv")}
                 disabled={loading || !apiKey}
-                className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50"
+                className="py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
               >
                 TV Shows
               </button>
