@@ -214,7 +214,7 @@ function HomeContent() {
   const [filterGenre, setFilterGenre] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string[]>([]);
   const [filterStream, setFilterStream] = useState<string>("");
-  const [filterRating, setFilterRating] = useState<string>("");
+  const [filterRatings, setFilterRatings] = useState<string[]>([]);
   const [filterStars, setFilterStars] = useState<string>("");
 
   const [showMoodTool, setShowMoodTool] = useState(false);
@@ -410,11 +410,11 @@ function HomeContent() {
       if (filterStream) url += `&with_watch_providers=${filterStream}&watch_region=US`;
       if (filterStars === "6+") url += `&vote_average.gte=6`;
       if (filterStars === "5-") url += `&vote_average.lte=5`;
-      if (filterRating && !isTv) {
-        if (filterRating === "PG13+") {
-          url += `&certification_country=US&certification.gte=PG-13`;
-        } else if (filterRating === "PG") {
-          url += `&certification_country=US&certification.gte=G&certification.lte=PG`;
+      if (filterRatings.length > 0 && !isTv) {
+        const order = ["G", "PG", "PG-13", "R", "NC-17"];
+        const indices = filterRatings.map((r) => order.indexOf(r)).filter((i) => i >= 0);
+        if (indices.length > 0) {
+          url += `&certification_country=US&certification.gte=${order[Math.min(...indices)]}&certification.lte=${order[Math.max(...indices)]}`;
         }
       }
       return url;
@@ -517,7 +517,7 @@ function HomeContent() {
 
   function clearFilters() {
     setFilterGenre(""); setFilterYear([]); setFilterStream("");
-    setFilterRating(""); setFilterStars("");
+    setFilterRatings([]); setFilterStars("");
   }
 
   function closeDetail() {
@@ -548,12 +548,16 @@ function HomeContent() {
 
   function applyFamilyChip(genreId: string) {
     setFilterGenre(filterGenre === genreId ? "" : genreId);
-    setShowFilters(true);
   }
 
   function applyMpaaChip(mpaaValue: string) {
-    setFilterRating(filterRating === mpaaValue ? "" : mpaaValue);
-    setShowFilters(true);
+    if (mpaaValue === "PG") {
+      const isActive = filterRatings.length > 0 && filterRatings.every((r) => ["G", "PG"].includes(r));
+      setFilterRatings(isActive ? [] : ["G", "PG"]);
+    } else if (mpaaValue === "PG13+") {
+      const isActive = filterRatings.length > 0 && filterRatings.every((r) => ["PG-13", "R", "NC-17"].includes(r));
+      setFilterRatings(isActive ? [] : ["PG-13", "R", "NC-17"]);
+    }
   }
 
   function pickRandom() {
@@ -842,13 +846,13 @@ function HomeContent() {
             <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               <button
                 onClick={() => applyMpaaChip("PG")}
-                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRatings.length > 0 && filterRatings.every((r) => ["G", "PG"].includes(r)) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
                 🎬 Family
               </button>
               <button
                 onClick={() => applyMpaaChip("PG13+")}
-                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRatings.length > 0 && filterRatings.every((r) => ["PG-13", "R", "NC-17"].includes(r)) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
                 🔞 Adult
               </button>
@@ -876,7 +880,7 @@ function HomeContent() {
               onClick={() => setShowFilters(!showFilters)}
               className={`px-5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${showFilters ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-yellow-500 hover:text-yellow-400"}`}
             >
-              🎛️ Filters {showFilters ? "▲" : "▼"}
+              🎛️ Adv Filter {showFilters ? "▲" : "▼"}
             </button>
           </div>
 
@@ -892,7 +896,7 @@ function HomeContent() {
               <button
                 type="submit"
                 disabled={loading || !apiKey}
-                className="shrink-0 px-5 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 text-sm"
+                className="w-20 shrink-0 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 text-sm"
               >
                 {loading ? "…" : "Movie"}
               </button>
@@ -910,7 +914,7 @@ function HomeContent() {
                 type="button"
                 onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
                 disabled={loading || !apiKey}
-                className="shrink-0 px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 text-sm"
+                className="w-20 shrink-0 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 text-sm"
               >
                 Actor
               </button>
@@ -928,7 +932,7 @@ function HomeContent() {
                 type="button"
                 onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "tv")}
                 disabled={loading || !apiKey}
-                className="shrink-0 px-5 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
+                className="w-20 shrink-0 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
               >
                 TV
               </button>
@@ -960,13 +964,26 @@ function HomeContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Rating</label>
-                    <select value={filterStars} onChange={(e) => setFilterStars(e.target.value)}
-                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm">
-                      <option value="">Any</option>
-                      <option value="6+">6+ ⭐</option>
-                      <option value="5-">5- ⭐</option>
-                    </select>
+                    <label className="block text-sm text-gray-400 mb-2">Rating</label>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      {(["G", "PG", "PG-13", "R", "NC-17"] as const).map((rating) => (
+                        <label key={rating} className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={filterRatings.includes(rating)}
+                            onChange={(e) =>
+                              setFilterRatings(
+                                e.target.checked
+                                  ? [...filterRatings, rating]
+                                  : filterRatings.filter((r) => r !== rating)
+                              )
+                            }
+                            className="accent-yellow-400 w-4 h-4"
+                          />
+                          <span className="text-sm text-white">{rating}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex items-end">
