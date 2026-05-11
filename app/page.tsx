@@ -649,7 +649,7 @@ function HomeContent() {
         <header className="bg-gray-800 py-4 px-4">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <button onClick={closeDetail} className="text-yellow-400 hover:text-yellow-300">← Back</button>
-            <button onClick={goHome} className="text-yellow-400 hover:text-yellow-300 font-semibold text-xl">Movies-DB</button>
+            <button onClick={goHome} className="text-yellow-400 hover:text-yellow-300 font-semibold text-xl">Couch Commander</button>
           </div>
         </header>
 
@@ -793,7 +793,7 @@ function HomeContent() {
       <header className="bg-gray-800 py-6 px-4">
         <div className="max-w-6xl mx-auto">
           <h1 onClick={goHome} className="text-4xl font-bold mb-4 text-center text-yellow-400 cursor-pointer hover:text-yellow-300">
-            Movies-DB
+            Couch Commander
           </h1>
 
           {!apiKey && (
@@ -816,11 +816,11 @@ function HomeContent() {
             </div>
           )}
 
-          <div className="max-w-2xl mx-auto mb-3 flex flex-wrap gap-2 justify-center items-center">
-            <span className="text-xs text-gray-400">Stream on:</span>
+          <div className="max-w-2xl mx-auto mb-3 flex gap-2 items-center overflow-x-auto pb-1 px-1" style={{ scrollbarWidth: "none" }}>
+            <span className="text-xs text-gray-400 shrink-0">Stream on:</span>
             <button
               onClick={() => setFilterStream("")}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === "" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === "" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
             >
               Any
             </button>
@@ -828,24 +828,24 @@ function HomeContent() {
               <button
                 key={p.provider_id}
                 onClick={() => setFilterStream(filterStream === String(p.provider_id) ? "" : String(p.provider_id))}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === String(p.provider_id) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterStream === String(p.provider_id) ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
                 {p.provider_name}
               </button>
             ))}
           </div>
 
-          <div className="max-w-2xl mx-auto mb-3 flex flex-wrap gap-2 justify-center items-center">
-            <span className="text-xs text-gray-400">Quick:</span>
+          <div className="max-w-2xl mx-auto mb-3 flex gap-2 items-center overflow-x-auto pb-1 px-1" style={{ scrollbarWidth: "none" }}>
+            <span className="text-xs text-gray-400 shrink-0">Quick:</span>
             <button
               onClick={() => applyMpaaChip("PG")}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
             >
               🎬 Family
             </button>
             <button
               onClick={() => applyMpaaChip("PG13+")}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterRating === "PG13+" ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
             >
               🔞 Adult
             </button>
@@ -853,7 +853,7 @@ function HomeContent() {
               <button
                 key={chip.genreId}
                 onClick={() => applyFamilyChip(chip.genreId)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border ${filterGenre === chip.genreId ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${filterGenre === chip.genreId ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-gray-400"}`}
               >
                 {chip.label}
               </button>
@@ -979,7 +979,7 @@ function HomeContent() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex gap-8">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
           <div className="flex-1 min-w-0">
             {error && (
               <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6">{error}</div>
@@ -1252,42 +1252,44 @@ function HomeContent() {
             )}
           </div>
 
-          {(watchlist.length > 0 || favorites.length > 0) && (
-            <aside className="w-52 shrink-0 space-y-6">
-              {watchlist.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-400 mb-3">Watch Together ({watchlist.length})</h3>
-                  <ul className="space-y-2">
-                    {watchlist.map((movie) => (
-                      <li key={movie.id} className="flex items-center justify-between gap-1">
-                        <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
-                          className="text-left text-sm text-gray-300 hover:text-blue-400 truncate flex-1">
-                          {movie.title}
-                        </button>
-                        <button onClick={() => toggleWatchlist(movie)} className="text-gray-500 hover:text-red-400 text-xs shrink-0">✕</button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+          <aside className="w-full md:w-52 shrink-0 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-400 mb-3">
+                📺 Watch Together{watchlist.length > 0 ? ` (${watchlist.length})` : ""}
+              </h3>
+              {watchlist.length > 0 ? (
+                <ul className="space-y-2">
+                  {watchlist.map((movie) => (
+                    <li key={movie.id} className="flex items-center justify-between gap-1">
+                      <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
+                        className="text-left text-sm text-gray-300 hover:text-blue-400 truncate flex-1">
+                        {movie.title}
+                      </button>
+                      <button onClick={() => toggleWatchlist(movie)} className="text-gray-500 hover:text-red-400 text-xs shrink-0">✕</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500 italic">Tap ➕ on any title to build your Watch Together list.</p>
               )}
-              {favorites.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-yellow-400 mb-3">Favorites ({favorites.length})</h3>
-                  <ul className="space-y-2">
-                    {favorites.map((movie) => (
-                      <li key={movie.id} className="flex items-center justify-between gap-1">
-                        <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
-                          className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate flex-1">
-                          {movie.title}
-                        </button>
-                        <button onClick={() => toggleFavorite(movie)} className="text-gray-500 hover:text-red-400 text-xs shrink-0">✕</button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </aside>
-          )}
+            </div>
+            {favorites.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-yellow-400 mb-3">Favorites ({favorites.length})</h3>
+                <ul className="space-y-2">
+                  {favorites.map((movie) => (
+                    <li key={movie.id} className="flex items-center justify-between gap-1">
+                      <button onClick={() => router.push(`?movie=${movie.id}&type=${movie.mediaType}`)}
+                        className="text-left text-sm text-gray-300 hover:text-yellow-400 truncate flex-1">
+                        {movie.title}
+                      </button>
+                      <button onClick={() => toggleFavorite(movie)} className="text-gray-500 hover:text-red-400 text-xs shrink-0">✕</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </aside>
         </div>
       </main>
 
