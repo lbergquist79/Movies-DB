@@ -482,7 +482,7 @@ function HomeContent() {
     if (
       query.trim() &&
       !filterGenre && filterYear.length === 0 && !filterStream &&
-      !filterRating && !filterStars
+      filterRatings.length === 0 && !filterStars
     ) {
       const searchRes = await fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}&language=en-US&page=${page}&include_adult=false`
