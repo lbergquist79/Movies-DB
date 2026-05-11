@@ -864,17 +864,23 @@ function HomeContent() {
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto mb-3 flex justify-center">
+          <div className="max-w-2xl mx-auto mb-3 flex justify-center gap-2">
             <button
               onClick={() => setShowMoodTool(!showMoodTool)}
               className={`px-5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${showMoodTool ? "bg-purple-600 text-white border-purple-600" : "border-gray-600 text-gray-300 hover:border-purple-500 hover:text-purple-400"}`}
             >
               🎭 Mood &amp; Vibe Discovery {showMoodTool ? "▲" : "▼"}
             </button>
+            <button
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-5 py-1.5 rounded-full text-xs font-semibold border transition-colors ${showFilters ? "bg-yellow-500 text-gray-900 border-yellow-500" : "border-gray-600 text-gray-300 hover:border-yellow-500 hover:text-yellow-400"}`}
+            >
+              🎛️ Filters {showFilters ? "▲" : "▼"}
+            </button>
           </div>
 
           <form onSubmit={(e) => handleSearch(e, 1)} className="max-w-xl mx-auto">
-            {/* Movies input + Filters toggle on one line */}
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -884,60 +890,47 @@ function HomeContent() {
                 className="flex-1 min-w-0 px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
               <button
-                type="button"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`shrink-0 px-3 py-3 rounded-lg text-sm ${showFilters ? "bg-yellow-500 text-gray-900" : "bg-gray-600 hover:bg-gray-500"}`}
+                type="submit"
+                disabled={loading || !apiKey}
+                className="shrink-0 px-5 py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 text-sm"
               >
-                Filters
+                {loading ? "…" : "Movie"}
               </button>
             </div>
 
-            {/* Actor input */}
-            <div className="mb-2">
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={actorSearch}
                 onChange={(e) => { setActorSearch(e.target.value); if (e.target.value) setQuery(""); }}
-                placeholder="Search by actor..."
-                className="w-full px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
+                placeholder="Search actors..."
+                className="flex-1 min-w-0 px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
+              <button
+                type="button"
+                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
+                disabled={loading || !apiKey}
+                className="shrink-0 px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 text-sm"
+              >
+                Actor
+              </button>
             </div>
 
-            {/* TV input */}
-            <div className="mb-3">
+            <div className="flex gap-2 mb-3">
               <input
                 type="text"
                 value={tvQuery}
                 onChange={(e) => { setTvQuery(e.target.value); if (e.target.value) setQuery(""); setActorSearch(""); }}
                 placeholder="Search TV shows..."
-                className="w-full px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
+                className="flex-1 min-w-0 px-3 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400 text-sm"
               />
-            </div>
-
-            {/* Aligned action buttons */}
-            <div className="grid grid-cols-3 gap-2 mb-1">
-              <button
-                type="submit"
-                disabled={loading || !apiKey}
-                className="py-3 bg-yellow-500 text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 text-sm"
-              >
-                {loading ? "…" : "Search"}
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "actor")}
-                disabled={loading || !apiKey}
-                className="py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 text-sm"
-              >
-                Actor
-              </button>
               <button
                 type="button"
                 onClick={(e) => handleSearch(e as unknown as React.FormEvent, 1, "tv")}
                 disabled={loading || !apiKey}
-                className="py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
+                className="shrink-0 px-5 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-500 disabled:opacity-50 text-sm"
               >
-                TV Shows
+                TV
               </button>
             </div>
 
